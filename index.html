@@ -665,14 +665,29 @@ function renderDashboard(){
         <span class="countdown" id="${cid}-rem">${rd}d ${rh}h ${rm2}m</span>
       </div>
     </div>`;}).join('')+`</div>`:'<div class="empty">No active jobs</div>';
-  document.getElementById('dash-planned').innerHTML=planSorted.length?`<div style="max-height:260px;overflow-y:auto"><table style="width:100%;font-size:12px"><thead><tr><th>#</th><th>Customer</th><th>Lot</th><th>Start</th><th>เริ่มใน</th></tr></thead><tbody>${planSorted.map(j=>{
-    const ms=startDt(j).getTime()-now2.getTime();
-    const isNeg=ms<0;
-    const absMins=Math.abs(ms)/60000;
-    const dd=Math.floor(absMins/1440),dh=Math.floor((absMins%1440)/60),dm=Math.round(absMins%60);
-    const countdownStr=isNeg?'เริ่มแล้ว':`${dd}d ${dh}h ${dm}m`;
-    const color=ms<86400000&&ms>0?'color:var(--red);font-weight:500':'color:var(--text3)';
-    return`<tr><td>${j.no}</td><td>${j.customer}</td><td>${j.lotno}</td><td>${j.startdate}</td><td style="${color}">${countdownStr}</td></tr>`;}).join('')}</tbody></table></div>`:'<div class="empty">No planned jobs</div>';
+  // Sort planned: by startdate ASC (soonest first), group by machine
+  const planByM={'1':[],'2':[]};
+  planSorted.forEach(j=>{const m=j.machine||'1';if(!planByM[m])planByM[m]=[];planByM[m].push(j);});
+  // Sort each machine group by startdate ASC
+  Object.keys(planByM).forEach(m=>planByM[m].sort((a,b)=>startDt(a)-startDt(b)));
+  
+  let planHtml='';
+  Object.keys(planByM).sort().forEach(m=>{
+    const rows=planByM[m];
+    if(!rows.length)return;
+    planHtml+=`<div style="font-size:10px;font-weight:500;color:var(--accent);letter-spacing:.07em;text-transform:uppercase;padding:6px 0 4px;border-bottom:1px solid var(--border)">Machine No.${m}</div>`;
+    planHtml+=rows.map(j=>{
+      const ms=startDt(j).getTime()-now2.getTime();
+      const isNeg=ms<0;
+      const absMins=Math.abs(ms)/60000;
+      const dd2=Math.floor(absMins/1440),dh2=Math.floor((absMins%1440)/60),dm2=Math.round(absMins%60);
+      const countdownStr=isNeg?'เริ่มแล้ว':`${dd2}d ${dh2}h ${dm2}m`;
+      const color=ms<86400000&&ms>0?'color:var(--red);font-weight:500':'color:var(--text3)';
+      return`<tr><td>${j.no}</td><td>${j.partno||'—'}</td><td>${j.customer}</td><td>${j.lotno}</td><td>${j.startdate}</td><td style="${color}">${countdownStr}</td></tr>`;
+    }).join('');
+  });
+
+  document.getElementById('dash-planned').innerHTML=planSorted.length?`<div style="max-height:260px;overflow-y:auto"><table style="width:100%;font-size:12px"><thead><tr><th>#</th><th>Part No.</th><th>Customer</th><th>Lot</th><th>Start</th><th>เริ่มใน</th></tr></thead><tbody>${planHtml}</tbody></table></div>`:'<div class="empty">No planned jobs</div>';
   // Starting soon card
   const soonCard=document.getElementById('dash-soon-card');
   const soonEl=document.getElementById('dash-soon');
