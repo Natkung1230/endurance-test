@@ -1139,43 +1139,12 @@ function checkOverlapBeforeSave(newJob, jobs){
 
 // --- Email sending via EmailJS ---
 async function sendEmailNotification(subject, message, recipients){
-  const cfg = loadConfig();
-  if(!cfg.emailjs_public_key||!cfg.emailjs_service_id||!cfg.emailjs_template_id) return false;
-  emailjs.init(cfg.emailjs_public_key);
-  const active = recipients.filter(r=>r.enabled);
-  const results = await Promise.allSettled(active.map(r=>
-    emailjs.send(cfg.emailjs_service_id, cfg.emailjs_template_id, {
-      to_name: r.name,
-      to_email: r.email,
-      name: r.name,
-      email: r.email,
-      title: subject,
-      subject: subject,
-      message: message,
-      time: new Date().toLocaleString('en-GB')
-    })
-  ));
-  return results.some(r=>r.status==='fulfilled');
+  return false; // Email notifications disabled
 }
 
 // --- Check upcoming jobs and send notification ---
-async function checkUpcomingNotifications(){return; // disabled
-  const jobs = window._jobs||[];
-  if(false){
-  const now = new Date().getTime();
-  const windowMs = cfg.notify_before_minutes * 60000;
-  jobs.filter(j=>j.status==='Plan'&&j.startdate).forEach(async j=>{
-    const startMs = startDt(j).getTime();
-    const key = `notif-${j._id}-${cfg.notify_before_minutes}`;
-    if(startMs > now && startMs - now <= windowMs && !_notifSent.has(key)){
-      _notifSent.add(key);
-      const minsLeft = Math.round((startMs-now)/60000);
-      const subject = `[Endurance Test] Job starting in ${minsLeft} min — Machine No.${j.machine}`;
-      const message = `Job is about to start!\n\nMachine: No.${j.machine}\nJob: #${j.no}\nCustomer: ${j.customer}\nPart No.: ${j.partno}\nLot No.: ${j.lotno}\nStart: ${j.startdate} ${j.startH}:${pad(j.startM)}\nCycles: ${j.cycles.toLocaleString()}\nLoad Max: ${j.load} N\n\nPlease ensure the machine is ready.`;
-      const sent = await sendEmailNotification(subject, message, recipients);
-      toast(`📧 Notification sent for Job #${j.no} (${minsLeft}min before start)`,'ok');
-    }
-  });
+async function checkUpcomingNotifications(){
+  // Email notifications disabled
 }
 
 // --- Render Settings page ---
@@ -1193,41 +1162,10 @@ function renderSettings(){
   renderRecipients();
 }
 
-function saveEmailConfig(){
-  const cfg = {
-    emailjs_public_key: document.getElementById('cfg-pubkey').value.trim(),
-    emailjs_service_id: document.getElementById('cfg-svcid').value.trim(),
-    emailjs_template_id: document.getElementById('cfg-tplid').value.trim(),
-    notify_before_minutes: parseInt(document.getElementById('cfg-minutes').value)||60
-  };
-  saveConfig(cfg);
-  Object.assign(NOTIFY_CONFIG, cfg);
-  try { emailjs.init({publicKey: cfg.emailjs_public_key}); } catch(e) {}
-  document.getElementById('cfg-status').textContent='✓ Saved';
-  setTimeout(()=>document.getElementById('cfg-status').textContent='',2000);
-  toast('Config saved','ok');
-}
+function saveEmailConfig(){ toast('Email notifications disabled'); }
 
 async function sendTestEmail(){
-  const email = document.getElementById('cfg-test-email').value.trim();
-  if(!email){toast('กรอก test email ก่อน','err');return;}
-  try {
-    emailjs.init({publicKey: 'i0iMABg2H8qtYF12R'});
-    const result = await emailjs.send('service_lmnglpu', 'aewxia9', {
-      to_name: 'Test User',
-      to_email: email,
-      name: 'Test User',
-      email: email,
-      title: '[Endurance Test] Test Notification',
-      subject: '[Endurance Test] Test Notification',
-      message: 'This is a test notification from Endurance Test Management System.\n\nIf you received this email, the notification system is working correctly.',
-      time: new Date().toLocaleString('en-GB')
-    });
-    toast('✓ Test email sent successfully!','ok');
-  } catch(e) {
-    console.error('EmailJS error:', e);
-    toast('❌ Failed: ' + (e.text||e.message||JSON.stringify(e)),'err');
-  }
+  toast('Email notifications disabled','err');
 }
 
 function renderRecipients(){
