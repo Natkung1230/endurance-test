@@ -49,7 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => { window._ready = true; renderDashboard(); }, 1200);
 });
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
 // =============================================
 // NOTIFICATION CONFIG — กรอก EmailJS config ตรงนี้
@@ -70,7 +69,7 @@ const NOTIFY_CONFIG = {
 html,body{height:100%}
 body{font-family:'IBM Plex Sans Thai',sans-serif;background:var(--bg);color:var(--text)}
 .nav{display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:56px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;gap:8px;flex-wrap:wrap}
-.nav-logo{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--accent);letter-spacing:.07em;display:flex;align-items:center;gap:7px}
+.nav-logo{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--accent);letter-spacing:.07em;display:flex;align-items:center;gap:5px;text-decoration:none}
 .nav-logo::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 2s infinite;flex-shrink:0}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 .nav-tabs{display:flex;gap:2px;flex-wrap:wrap}
@@ -172,7 +171,12 @@ tr:last-child td{border-bottom:none}
 </head>
 <body>
 <nav class="nav">
-  <div class="nav-logo">ENDURANCE TEST SYSTEM</div>
+  <div class="nav-logo">
+    <span style="color:var(--accent);letter-spacing:.1em;font-weight:600">ENDURANCE TEST</span>
+    <span style="color:var(--text3);margin:0 4px;font-size:10px">|</span>
+    <span style="background:linear-gradient(135deg,#3b82f6,#14b8a6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:700;letter-spacing:.05em">SYSTEM</span>
+    <span style="font-size:9px;color:var(--text3);letter-spacing:.12em;margin-left:5px;font-weight:400;opacity:.7">by NSP</span>
+  </div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="gotoPage('dashboard')">Dashboard</button>
     <button class="nav-tab" onclick="gotoPage('input')">New Job</button>
@@ -197,8 +201,15 @@ tr:last-child td{border-bottom:none}
     </select>
   </div>
   <div class="metrics" id="dash-metrics"><div class="loading">Loading from Firebase...</div></div>
+  <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;display:none" id="dash-soon-card">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="font-size:14px">🔔</span>
+      <span style="font-size:12px;font-weight:600;color:#fca5a5;text-transform:uppercase;letter-spacing:.06em">Starting Within 24 Hours</span>
+    </div>
+    <div id="dash-soon"></div>
+  </div>
   <div class="g2">
-    <div class="card"><p class="card-title">Active Jobs</p><div id="dash-running"></div></div>
+    <div class="card"><p class="card-title">Active Jobs — Running</p><div id="dash-running"></div></div>
     <div class="card"><p class="card-title">Planned Jobs</p><div id="dash-planned"></div></div>
   </div>
   <div class="card"><p class="card-title">Summary by Customer</p><div id="dash-customer"></div></div>
@@ -401,35 +412,12 @@ tr:last-child td{border-bottom:none}
     <div id="overlap-list"><div class="empty">Checking...</div></div>
   </div>
 
-  <!-- Email config — keys embedded, only show notify timing + test -->
-  <div class="card" style="margin-bottom:1rem">
-    <p class="card-title">Email Notification Settings</p>
-    <div class="form-grid g2" style="margin-bottom:11px">
-      <div class="fl"><label>แจ้งเตือนก่อนงานเริ่ม</label>
-        <select id="cfg-minutes">
-          <option value="30">30 นาทีก่อน</option>
-          <option value="60" selected>1 ชั่วโมงก่อน</option>
-          <option value="120">2 ชั่วโมงก่อน</option>
-          <option value="0">ปิดแจ้งเตือน</option>
-        </select>
-      </div>
-      <div class="fl"><label>ทดสอบส่งอีเมล</label>
-        <div style="display:flex;gap:6px">
-          <input type="email" id="cfg-test-email" placeholder="test@email.com" style="flex:1">
-          <button class="btn btn-ghost btn-sm" onclick="sendTestEmail()" style="white-space:nowrap">Send Test</button>
-        </div>
-      </div>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-primary" onclick="saveEmailConfig()">Save</button>
-      <span id="cfg-status" style="font-size:12px;color:var(--green);align-self:center"></span>
-      <span style="font-size:11px;color:var(--text3);align-self:center">✓ EmailJS connected — service_lmnglpu</span>
-    </div>
-    <!-- hidden inputs for compatibility -->
-    <input type="hidden" id="cfg-pubkey" value="i0iMABg2H8qtYF12R">
-    <input type="hidden" id="cfg-svcid" value="service_lmnglpu">
-    <input type="hidden" id="cfg-tplid" value="aewxia9">
-  </div>
+  <!-- Email notification disabled -->
+  <input type="hidden" id="cfg-pubkey" value="">
+  <input type="hidden" id="cfg-svcid" value="">
+  <input type="hidden" id="cfg-tplid" value="">
+  <input type="hidden" id="cfg-minutes" value="0">
+  <span id="cfg-status"></span>
 
   <!-- Recipients -->
   <div class="card">
@@ -465,7 +453,19 @@ function dhm(j){
 }
 function fmtDT(d){if(!d)return'—';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
 function fmtDateUS(d){return d?d.toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'}):'—';}
+function effectiveStatus(j){
+  if(j.status==='Stop'||j.status==='Finished') return j.status;
+  if(!j.startdate) return j.status;
+  const now=new Date().getTime();
+  const sMs=startDt(j).getTime();
+  const fin2=finishDt(j);
+  const fMs=fin2?fin2.getTime():null;
+  if(fMs&&now>=fMs) return 'Finished';
+  if(sMs<=now) return 'Run';
+  return 'Plan';
+}
 function sBadge(s){const c={Run:'b-run',Finished:'b-done',Plan:'b-plan',Stop:'b-stop'};return`<span class="badge ${c[s]||'b-plan'}">${s}</span>`;}
+function sBadgeJ(j){const s=effectiveStatus(j);return sBadge(s);}
 function toast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.className='toast',3000);}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function monthKey(ds){if(!ds)return'Unknown';const d=new Date(ds);return d.toLocaleDateString('en-US',{year:'numeric',month:'long'});}
@@ -632,13 +632,23 @@ function renderDashboard(){
     <div class="mc"><div class="mc-label">RUNNING</div><div class="mc-val green">${run.length}</div></div>
     <div class="mc"><div class="mc-label">FINISHED</div><div class="mc-val">${fin.length}</div></div>
     <div class="mc"><div class="mc-label">PLANNED</div><div class="mc-val amber">${plan.length}</div></div>
-    <div class="mc"><div class="mc-label">STOPPED</div><div class="mc-val red">${stop.length}</div></div>
-    <div class="mc"><div class="mc-label">TOTAL CYCLES</div><div class="mc-val teal">${(tc/1e6).toFixed(1)}M</div></div>`;
-  document.getElementById('dash-running').innerHTML=run.length?run.map(j=>{
-    const now=new Date(),fin2=finishDt(j);
-    const elMins=Math.max(0,(now-startDt(j))/60000),tm=j.cycles/(j.speed||500),pct=Math.min(100,Math.round(elMins/tm*100));
+    <div class="mc"><div class="mc-label">STOPPED</div><div class="mc-val red">${stop.length}</div></div>`;
+  // Sort running by no
+  const runSorted=[...run].sort((a,b)=>a.no-b.no);
+  const planSorted=[...plan].sort((a,b)=>a.no-b.no);
+  // Starting soon: plan jobs starting within 24h
+  const now2=new Date();
+  const soonJobs=planSorted.filter(j=>{
+    if(!j.startdate)return false;
+    const ms=startDt(j).getTime()-now2.getTime();
+    return ms>0&&ms<=86400000;
+  });
+
+  document.getElementById('dash-running').innerHTML=runSorted.length?`<div style="max-height:260px;overflow-y:auto;padding-right:4px">`+runSorted.map(j=>{
+    const fin2=finishDt(j);
+    const elMins=Math.max(0,(now2-startDt(j))/60000),tm=j.cycles/(j.speed||500),pct=Math.min(100,Math.round(elMins/tm*100));
     const elCycles=Math.min(j.cycles,Math.round(elMins*(j.speed||500)));
-    const rem=fin2?Math.max(0,(fin2-now)/60000):0;
+    const rem=fin2?Math.max(0,(fin2-now2)/60000):0;
     const rd=Math.floor(rem/1440),rh=Math.floor((rem%1440)/60),rm2=Math.round(rem%60);
     const cid='dcd-'+j._id.replace(/[^a-z0-9]/gi,'');
     return`<div style="margin-bottom:14px">
@@ -654,8 +664,36 @@ function renderDashboard(){
         <span style="color:var(--text3)">ETA: ${fmtDT(fin2)}</span>
         <span class="countdown" id="${cid}-rem">${rd}d ${rh}h ${rm2}m</span>
       </div>
-    </div>`;}).join(''):'<div class="empty">No active jobs</div>';
-  document.getElementById('dash-planned').innerHTML=plan.length?`<table style="width:100%;font-size:12px"><thead><tr><th>#</th><th>Customer</th><th>Lot</th><th>Start</th></tr></thead><tbody>${plan.slice(0,6).map(j=>`<tr><td>${j.no}</td><td>${j.customer}</td><td>${j.lotno}</td><td>${j.startdate}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">No planned jobs</div>';
+    </div>`;}).join('')+`</div>`:'<div class="empty">No active jobs</div>';
+  document.getElementById('dash-planned').innerHTML=planSorted.length?`<div style="max-height:260px;overflow-y:auto"><table style="width:100%;font-size:12px"><thead><tr><th>#</th><th>Customer</th><th>Lot</th><th>Start</th><th>เริ่มใน</th></tr></thead><tbody>${planSorted.map(j=>{
+    const ms=startDt(j).getTime()-now2.getTime();
+    const isNeg=ms<0;
+    const absMins=Math.abs(ms)/60000;
+    const dd=Math.floor(absMins/1440),dh=Math.floor((absMins%1440)/60),dm=Math.round(absMins%60);
+    const countdownStr=isNeg?'เริ่มแล้ว':`${dd}d ${dh}h ${dm}m`;
+    const color=ms<86400000&&ms>0?'color:var(--red);font-weight:500':'color:var(--text3)';
+    return`<tr><td>${j.no}</td><td>${j.customer}</td><td>${j.lotno}</td><td>${j.startdate}</td><td style="${color}">${countdownStr}</td></tr>`;}).join('')}</tbody></table></div>`:'<div class="empty">No planned jobs</div>';
+  // Starting soon card
+  const soonCard=document.getElementById('dash-soon-card');
+  const soonEl=document.getElementById('dash-soon');
+  if(soonJobs.length){
+    soonCard.style.display='block';
+    soonEl.innerHTML=soonJobs.map(j=>{
+      const ms=startDt(j).getTime()-now2.getTime();
+      const mins=ms/60000;
+      const hh=Math.floor(mins/60),mm=Math.round(mins%60);
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+        <div>
+          <span style="font-size:12px;font-weight:500">M${j.machine} #${j.no} — ${j.customer} / ${j.lotno}</span>
+          <span style="font-size:10px;color:var(--text3);margin-left:8px">${j.startdate} ${pad(j.startH)}:${pad(j.startM)}</span>
+        </div>
+        <span style="font-family:var(--mono);font-size:12px;color:var(--red);font-weight:500">เริ่มใน ${hh}h ${mm}m</span>
+      </div>`;
+    }).join('');
+  } else {
+    soonCard.style.display='none';
+  }
+
   const cust={};all.forEach(j=>{if(!cust[j.customer])cust[j.customer]={n:0,c:0,d:0};cust[j.customer].n++;cust[j.customer].c+=j.cycles||0;if(j.status==='Finished')cust[j.customer].d++;});
   if(typeof renderOverlapIndicator==='function')renderOverlapIndicator();
   document.getElementById('dash-customer').innerHTML=`<table style="width:100%;font-size:12px"><thead><tr><th>Customer</th><th>Jobs</th><th>Finished</th><th>Total Cycles</th><th>Share</th></tr></thead><tbody>${Object.entries(cust).sort((a,b)=>b[1].c-a[1].c).map(([c,v])=>{const p=tc?Math.round(v.c/tc*100):0;return`<tr><td>${c}</td><td>${v.n}</td><td>${v.d}</td><td>${v.c.toLocaleString()}</td><td><div style="display:flex;align-items:center;gap:6px"><div class="prog-bg" style="width:90px"><div class="prog-fill" style="width:${p}%;background:var(--accent)"></div></div><span style="font-size:10px;color:var(--text3)">${p}%</span></div></td></tr>`;}).join('')}</tbody></table>`;
@@ -672,7 +710,7 @@ function jobCard(j,type){
   const cid='cd-'+fid.replace(/[^a-z0-9]/gi,'');
   const seqLabel=j._seq?`#${j._seq}`:`#${j.no}`;
   return`<div class="job-card ${type}">
-    <div class="jno">Machine No.${j.machine} — ${seqLabel} &nbsp;${sBadge(j.status)}</div>
+    <div class="jno">Machine No.${j.machine} — ${seqLabel} &nbsp;${sBadgeJ(j)}</div>
     <div class="jname">${j.customer} / ${j.lotno}</div>
     <div class="jmeta">
       <div class="jm">Part: <span>${j.partno}</span></div>
@@ -862,7 +900,7 @@ function renderHistory(){
         <td>${j.l1}</td><td>${j.l2}</td><td>${j.stroke}</td><td>${j.sr||'—'}</td><td>${j.load}</td>
         <td>${j.speed}</td><td>${(j.cycles||0).toLocaleString()}</td><td>${j.startdate}</td>
         <td style="font-size:11px">${fmtDT(fin2)}</td><td>${dd.d}d ${dd.h}h ${dd.m}m</td>
-        <td>${sBadge(j.status)}</td><td style="color:var(--text3)">${j.note||''}</td>
+        <td>${sBadgeJ(j)}</td><td style="color:var(--text3)">${j.note||''}</td>
         <td><div style="display:flex;gap:4px">
           <button class="btn btn-ghost btn-sm" onclick="openDetail('${fid}')">Detail</button>
           <button class="btn btn-ghost btn-sm" onclick="openEdit('${fid}')">Edit</button>
@@ -917,7 +955,7 @@ function renderExport(){
         <span class="chip">${j.lotno}</span>
         <span style="font-size:10px;color:var(--text3)">${j.startdate}</span>
         <span style="font-size:10px;color:var(--text3)">${(j.cycles||0).toLocaleString()}</span>
-        ${sBadge(j.status)}
+        ${sBadgeJ(j)}
       </div>
     </div>`).join('');
   updateSelCount();renderExportPreview(visible);
@@ -1121,12 +1159,9 @@ async function sendEmailNotification(subject, message, recipients){
 }
 
 // --- Check upcoming jobs and send notification ---
-async function checkUpcomingNotifications(){
+async function checkUpcomingNotifications(){return; // disabled
   const jobs = window._jobs||[];
-  const cfg = loadConfig();
-  if(!cfg.notify_before_minutes) return;
-  const recipients = loadRecipients().filter(r=>r.enabled);
-  if(!recipients.length) return;
+  if(false){
   const now = new Date().getTime();
   const windowMs = cfg.notify_before_minutes * 60000;
   jobs.filter(j=>j.status==='Plan'&&j.startdate).forEach(async j=>{
