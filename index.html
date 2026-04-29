@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
 const NOTIFY_CONFIG = {
   emailjs_public_key: 'i0iMABg2H8qtYF12R',
   emailjs_service_id: 'service_lmnglpu',
-  emailjs_template_id: 'template_gyy8o0p',
+  emailjs_template_id: 'aewxia9',
   notify_before_minutes: 60
 };
 // recipients: [{name:'ชื่อ', email:'email@example.com', enabled:true}]
@@ -428,7 +428,7 @@ tr:last-child td{border-bottom:none}
     <!-- hidden inputs for compatibility -->
     <input type="hidden" id="cfg-pubkey" value="i0iMABg2H8qtYF12R">
     <input type="hidden" id="cfg-svcid" value="service_lmnglpu">
-    <input type="hidden" id="cfg-tplid" value="template_gyy8o0p">
+    <input type="hidden" id="cfg-tplid" value="aewxia9">
   </div>
 
   <!-- Recipients -->
@@ -1178,7 +1178,7 @@ async function sendTestEmail(){
   if(!email){toast('กรอก test email ก่อน','err');return;}
   try {
     emailjs.init({publicKey: 'i0iMABg2H8qtYF12R'});
-    const result = await emailjs.send('service_lmnglpu', 'template_gyy8o0p', {
+    const result = await emailjs.send('service_lmnglpu', 'aewxia9', {
       to_name: 'Test User',
       to_email: email,
       name: 'Test User',
