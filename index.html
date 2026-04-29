@@ -43,7 +43,7 @@ onSnapshot(q, (snapshot) => {
 });
 
 // Init EmailJS immediately
-try { emailjs.init('i0iMABg2H8qtYF12R'); } catch(e) {}
+try { emailjs.init({publicKey: 'i0iMABg2H8qtYF12R'}); } catch(e) {}
 window._ready = false;
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => { window._ready = true; renderDashboard(); }, 1200);
@@ -1046,21 +1046,35 @@ function renderOverlapAlerts(){
     el.innerHTML='<div class="notif-banner nb-ok"><span class="notif-icon">✓</span><div>No schedule conflicts detected — all machines clear</div></div>';
     return;
   }
-  el.innerHTML = conflicts.map(({a,b})=>`
-    <div class="notif-banner nb-warn">
-      <span class="notif-icon">⚠</span>
-      <div>
-        <strong>Machine No.${a.machine} — Schedule Conflict!</strong><br>
-        <span style="opacity:.85">#${a.no} ${a.customer}/${a.lotno}</span>
-        <span style="margin:0 6px;opacity:.5">↔</span>
-        <span style="opacity:.85">#${b.no} ${b.customer}/${b.lotno}</span><br>
-        <span style="font-size:11px;opacity:.7">
-          ${a.startdate} ${pad(a.startH)}:${pad(a.startM)} — ${fmtDT(finishDt(a))}
-          &nbsp;⟷&nbsp;
-          ${b.startdate} ${pad(b.startH)}:${pad(b.startM)} — ${fmtDT(finishDt(b))}
-        </span>
+  el.innerHTML = conflicts.map(({a,b},i)=>{
+    const aFin=finishDt(a), bFin=finishDt(b);
+    const aDHM=dhm(a), bDHM=dhm(b);
+    return`<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:1rem 1.25rem;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:16px">⚠️</span>
+        <span style="font-size:13px;font-weight:600;color:#fca5a5">Conflict #${i+1} — Machine No.${a.machine}</span>
       </div>
-    </div>`).join('');
+      <div style="display:grid;grid-template-columns:1fr 40px 1fr;gap:8px;align-items:center">
+        <div style="background:rgba(0,0,0,.2);border-radius:8px;padding:10px 12px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Job #${a.no}</div>
+          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px">${a.customer}</div>
+          <div style="font-size:11px;color:var(--text2)">${a.lotno}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px">▶ ${a.startdate} ${pad(a.startH)}:${pad(a.startM)}</div>
+          <div style="font-size:10px;color:var(--text3)">⏹ ${fmtDT(aFin)}</div>
+          <div style="font-size:10px;color:var(--amber);margin-top:2px">⏱ ${aDHM.d}d ${aDHM.h}h ${aDHM.m}m</div>
+        </div>
+        <div style="text-align:center;font-size:18px;color:#fca5a5">↔</div>
+        <div style="background:rgba(0,0,0,.2);border-radius:8px;padding:10px 12px">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Job #${b.no}</div>
+          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px">${b.customer}</div>
+          <div style="font-size:11px;color:var(--text2)">${b.lotno}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px">▶ ${b.startdate} ${pad(b.startH)}:${pad(b.startM)}</div>
+          <div style="font-size:10px;color:var(--text3)">⏹ ${fmtDT(bFin)}</div>
+          <div style="font-size:10px;color:var(--amber);margin-top:2px">⏱ ${bDHM.d}d ${bDHM.h}h ${bDHM.m}m</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
   // Toast alert
   if(conflicts.length && !_notifSent.has('overlap-toast')){
     toast(`⚠ ${conflicts.length} schedule conflict${conflicts.length>1?'s':''} detected!`,'err');
@@ -1153,7 +1167,7 @@ function saveEmailConfig(){
   };
   saveConfig(cfg);
   Object.assign(NOTIFY_CONFIG, cfg);
-  try { emailjs.init(cfg.emailjs_public_key); } catch(e) {}
+  try { emailjs.init({publicKey: cfg.emailjs_public_key}); } catch(e) {}
   document.getElementById('cfg-status').textContent='✓ Saved';
   setTimeout(()=>document.getElementById('cfg-status').textContent='',2000);
   toast('Config saved','ok');
@@ -1162,12 +1176,23 @@ function saveEmailConfig(){
 async function sendTestEmail(){
   const email = document.getElementById('cfg-test-email').value.trim();
   if(!email){toast('กรอก test email ก่อน','err');return;}
-  const sent = await sendEmailNotification(
-    '[Endurance Test] Test Notification',
-    'This is a test notification from Endurance Test Management System.',
-    [{name:'Test', email, enabled:true}]
-  );
-  toast(sent?'✓ Test email sent!':'❌ Failed — check EmailJS config','ok');
+  try {
+    emailjs.init({publicKey: 'i0iMABg2H8qtYF12R'});
+    const result = await emailjs.send('service_lmnglpu', 'template_gyy8o0p', {
+      to_name: 'Test User',
+      to_email: email,
+      name: 'Test User',
+      email: email,
+      title: '[Endurance Test] Test Notification',
+      subject: '[Endurance Test] Test Notification',
+      message: 'This is a test notification from Endurance Test Management System.\n\nIf you received this email, the notification system is working correctly.',
+      time: new Date().toLocaleString('en-GB')
+    });
+    toast('✓ Test email sent successfully!','ok');
+  } catch(e) {
+    console.error('EmailJS error:', e);
+    toast('❌ Failed: ' + (e.text||e.message||JSON.stringify(e)),'err');
+  }
 }
 
 function renderRecipients(){
