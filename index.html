@@ -9,7 +9,8 @@
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAYMmQEPMU_z9zSFzBvNy6pZL9grMff89M",
@@ -20,33 +21,124 @@ const firebaseConfig = {
   appId: "1:805006189163:web:a37525e7021a086bf5472e"
 };
 
+const ADMIN_EMAIL = 'nattapolbc2002@gmail.com'; // Legacy compat
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-window._db = db;
-window._col = collection(db, "jobs");
-window._fns = { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy };
+const auth = getAuth(app);
 
-// Real-time listener
-const q = query(collection(db, "jobs"), orderBy("startdate", "desc"));
-onSnapshot(q, (snapshot) => {
-  window._jobs = [];
-  snapshot.forEach(d => { window._jobs.push({ _id: d.id, ...d.data() }); });
-  window._jobs.sort((a,b) => { const dm=new Date(b.startdate)-new Date(a.startdate); return dm!==0?dm:a.no-b.no; });
-  if (window._ready) {
-    renderDashboard();
-    renderRunning();
+window._db = db;
+window._auth = auth;
+window._col = collection(db, "jobs");
+window._fns = { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy, setDoc, getDoc };
+window._adminEmail = ADMIN_EMAIL;
+
+// Auth state listener
+const DEV_EMAIL = 'nattapolbc2002@gmail.com';
+window._devEmail = DEV_EMAIL;
+
+function getRoleFromEmail(email) {
+  if (email.toLowerCase() === DEV_EMAIL.toLowerCase()) return 'dev';
+  return 'user';
+}
+function canApprove(role) {
+  return role === 'dev' || role === 'admin';
+}
+
+let _jobsUnsubscribe = null;
+let _usersUnsubscribe = null;
+
+function startListeners() {
+  if (_jobsUnsubscribe) return; // already listening
+  const q = query(collection(db, "jobs"), orderBy("startdate", "desc"));
+  _jobsUnsubscribe = onSnapshot(q, (snapshot) => {
+    window._jobs = [];
+    snapshot.forEach(d => { window._jobs.push({ _id: d.id, ...d.data() }); });
+    window._jobs.sort((a,b) => { const dm=new Date(b.startdate)-new Date(a.startdate); return dm!==0?dm:a.no-b.no; });
+    if (window._ready && window._currentUser) {
+      renderDashboard();
+      renderRunning();
+      const activePage = document.querySelector('.page.active');
+      if (activePage && activePage.id === 'page-history') renderHistory();
+      if (activePage && activePage.id === 'page-export') renderExport();
+    }
+    const si = document.getElementById('sync-indicator');
+    if(si) si.textContent = 'Synced ' + new Date().toLocaleTimeString('en-GB');
+  }, (err) => { console.error('Jobs listener error:', err); });
+
+  _usersUnsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
+    window._users = [];
+    snapshot.forEach(d => window._users.push({ _uid: d.id, ...d.data() }));
     const activePage = document.querySelector('.page.active');
-    if (activePage && activePage.id === 'page-history') renderHistory();
-    if (activePage && activePage.id === 'page-export') renderExport();
+    if (activePage && activePage.id === 'page-admin') renderAdminPanel();
+    if (typeof updatePendingBadge === 'function') updatePendingBadge();
+  }, (err) => { console.error('Users listener error:', err); });
+}
+
+function stopListeners() {
+  if (_jobsUnsubscribe) { _jobsUnsubscribe(); _jobsUnsubscribe = null; }
+  if (_usersUnsubscribe) { _usersUnsubscribe(); _usersUnsubscribe = null; }
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    stopListeners();
+    window._currentUser = null;
+    window._userRole = null;
+    window._isAdmin = false;
+    if (typeof showLoginScreen === 'function') showLoginScreen();
+    return;
   }
-  document.getElementById('sync-indicator').textContent = 'Synced ' + new Date().toLocaleTimeString('en-GB');
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userRef);
+    let userData;
+    if (!userDoc.exists()) {
+      const isDev = user.email.toLowerCase() === DEV_EMAIL.toLowerCase();
+      userData = {
+        email: user.email,
+        displayName: user.email.split('@')[0],
+        status: isDev ? 'approved' : 'pending',
+        role: isDev ? 'dev' : 'user',
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(userRef, userData);
+    } else {
+      userData = userDoc.data();
+      if (user.email.toLowerCase() === DEV_EMAIL.toLowerCase() && userData.role !== 'dev') {
+        await updateDoc(userRef, { role: 'dev', status: 'approved' });
+        userData = { ...userData, role: 'dev', status: 'approved' };
+      }
+    }
+
+    window._currentUser = { ...userData, uid: user.uid };
+    window._userRole = userData.role || 'user';
+    window._isAdmin = canApprove(window._userRole);
+
+    if (userData.status === 'pending') {
+      if (typeof showPendingScreen === 'function') showPendingScreen(user.email);
+      return;
+    }
+    if (userData.status === 'rejected') {
+      if (typeof showRejectedScreen === 'function') showRejectedScreen(user.email);
+      return;
+    }
+
+    // Approved — start listeners then enter
+    startListeners();
+    if (typeof hideLoginScreen === 'function') hideLoginScreen();
+    if (window._isAdmin && typeof showAdminTab === 'function') showAdminTab();
+
+  } catch(e) {
+    console.error('Auth error:', e.code, e.message);
+    if (typeof showLoginScreen === 'function') showLoginScreen();
+  }
 });
 
-// Init EmailJS immediately
+window._authFns = { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail };
 try { emailjs.init({publicKey: 'i0iMABg2H8qtYF12R'}); } catch(e) {}
 window._ready = false;
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => { window._ready = true; renderDashboard(); }, 1200);
+  setTimeout(() => { window._ready = true; }, 800);
 });
 </script>
 <script>
@@ -160,6 +252,25 @@ tr:last-child td{border-bottom:none}
 .chip{display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;background:var(--bg3);color:var(--text2);font-family:var(--mono)}
 .sel-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-bottom:1px solid var(--border);margin-bottom:4px;flex-wrap:wrap;gap:6px}
 .empty{text-align:center;padding:2rem 1rem;color:var(--text3);font-size:13px}
+/* Login Screen */
+.login-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.login-box{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:2rem;width:90%;max-width:420px}
+.login-logo{text-align:center;margin-bottom:1.5rem}
+.login-logo p:first-child{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600;letter-spacing:.1em}
+.login-logo p:last-child{font-size:11px;color:var(--text3);margin-top:4px}
+.login-tabs{display:flex;gap:2px;margin-bottom:1.5rem;background:var(--bg3);border-radius:8px;padding:3px}
+.login-tab{flex:1;padding:7px;text-align:center;font-size:13px;cursor:pointer;border-radius:6px;color:var(--text2);transition:all .15s;border:none;background:none;font-family:inherit}
+.login-tab.active{background:var(--accent);color:#fff}
+.login-form{display:flex;flex-direction:column;gap:12px}
+.status-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;text-align:center}
+/* Admin tab */
+.admin-badge{display:inline-block;font-size:9px;padding:1px 6px;border-radius:10px;background:rgba(245,158,11,.2);color:var(--amber);border:1px solid rgba(245,158,11,.3);margin-left:4px;vertical-align:middle}
+.user-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.user-row:last-child{border-bottom:none}
+.status-pill{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;font-family:var(--mono)}
+.sp-pending{background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.3)}
+.sp-approved{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3)}
+.sp-rejected{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
 .notif-banner{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:10px;margin-bottom:8px;font-size:12px}
 .nb-warn{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
 .nb-info{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#fcd34d}
@@ -173,6 +284,57 @@ tr:last-child td{border-bottom:none}
 </style>
 </head>
 <body>
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <p>ENDURANCE TEST | SYSTEM <span style="background:linear-gradient(135deg,#3b82f6,#14b8a6);-webkit-background-clip:text;-webkit-text-fill-color:transparent">by NSP</span></p>
+      <p>Sign in to access the system</p>
+    </div>
+    <div class="login-tabs">
+      <button class="login-tab active" onclick="switchLoginTab('login',this)">Sign In</button>
+      <button class="login-tab" onclick="switchLoginTab('register',this)">Register</button>
+    </div>
+    <!-- Login Form -->
+    <div id="login-form" class="login-form">
+      <div class="fl"><label>Email</label><input type="email" id="l-email" placeholder="email@example.com"></div>
+      <div class="fl"><label>Password</label><input type="password" id="l-pass" placeholder="Password"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doLogin()">Sign In</button>
+      <div style="text-align:center">
+        <button onclick="showForgotPassword()" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--accent);font-family:inherit;text-decoration:underline">Forgot Password?</button>
+      </div>
+      <div id="l-err" style="font-size:12px;color:var(--red);text-align:center;display:none"></div>
+      <div id="l-ok" style="font-size:12px;color:var(--green);text-align:center;display:none"></div>
+    </div>
+    <!-- Register Form -->
+    <div id="register-form" class="login-form" style="display:none">
+      <div class="fl"><label>ชื่อ-นามสกุล / Display Name</label><input type="text" id="r-name" placeholder="ชื่อผู้ใช้"></div>
+      <div class="fl"><label>Email</label><input type="email" id="r-email" placeholder="email@example.com"></div>
+      <div class="fl"><label>Password (อย่างน้อย 6 ตัวอักษร)</label><input type="password" id="r-pass" placeholder="Password"></div>
+      <div class="fl"><label>Confirm Password</label><input type="password" id="r-pass2" placeholder="Confirm Password"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doRegister()">Register</button>
+      <div id="r-err" style="font-size:12px;color:var(--red);text-align:center;display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PENDING SCREEN -->
+<div class="status-screen" id="pending-screen">
+  <div style="font-size:40px">⏳</div>
+  <div style="font-size:18px;font-weight:500">Pending Approval</div>
+  <div style="font-size:13px;color:var(--text3);max-width:320px">บัญชีของคุณรอการอนุมัติจาก Admin<br>กรุณารอการติดต่อกลับ</div>
+  <div id="pending-email" style="font-family:var(--mono);font-size:12px;color:var(--text2)"></div>
+  <button class="btn btn-ghost" onclick="doSignOut()">Sign Out</button>
+</div>
+
+<!-- REJECTED SCREEN -->
+<div class="status-screen" id="rejected-screen">
+  <div style="font-size:40px">❌</div>
+  <div style="font-size:18px;font-weight:500;color:var(--red)">Access Denied</div>
+  <div style="font-size:13px;color:var(--text3)">บัญชีของคุณถูกปฏิเสธจาก Admin</div>
+  <button class="btn btn-ghost" onclick="doSignOut()">Sign Out</button>
+</div>
+
 <nav class="nav">
   <div class="nav-logo">
     <span style="color:var(--accent);letter-spacing:.1em;font-weight:600">ENDURANCE TEST</span>
@@ -187,8 +349,14 @@ tr:last-child td{border-bottom:none}
     <button class="nav-tab" onclick="gotoPage('history')">History</button>
     <button class="nav-tab" onclick="gotoPage('export')">Export Excel</button>
     <button class="nav-tab" onclick="gotoPage('settings')">⚙ Notify</button>
+    <button class="nav-tab" id="admin-tab" style="display:none" onclick="gotoPage('admin')">👤 Admin<span class="admin-badge" id="pending-count-badge"></span></button>
   </div>
-  <div class="nav-right"><span class="sync-dot"></span><span id="sync-indicator">Connecting...</span><br><span id="nav-clock">--:--:--</span></div>
+  <div class="nav-right" style="text-align:right">
+  <span class="sync-dot"></span><span id="sync-indicator">Connecting...</span>
+  <span id="user-info" style="margin-left:8px;font-size:10px;color:var(--text3)"></span>
+  <button onclick="doSignOut()" style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--text3);margin-left:6px;font-family:inherit">Sign Out</button>
+  <br><span id="nav-clock">--:--:--</span>
+</div>
 </nav>
 
 <!-- DASHBOARD -->
@@ -394,6 +562,35 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<!-- ADMIN PAGE -->
+<div class="page" id="page-admin">
+  <div class="sec-hdr">
+    <div>
+      <p class="sec-title">User Management <span class="admin-badge">Dev / Admin Only</span></p>
+      <p class="sec-sub">Approve or reject user registrations — manage roles</p>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="renderAdminPanel()">↺ Refresh</button>
+  </div>
+
+  <!-- Pending - highlighted -->
+  <div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:12px">
+    <p class="card-title" style="color:var(--amber)">⏳ Pending Approval <span id="pending-count-text" style="font-weight:400;color:var(--text3)"></span></p>
+    <div id="admin-pending"></div>
+  </div>
+
+  <!-- Approved -->
+  <div class="card" style="margin-bottom:12px">
+    <p class="card-title">✅ Approved Users</p>
+    <div id="admin-approved"></div>
+  </div>
+
+  <!-- Rejected -->
+  <div class="card">
+    <p class="card-title">❌ Rejected Users</p>
+    <div id="admin-rejected"></div>
+  </div>
+</div>
+
 <!-- PAUSE MODAL -->
 <div class="ov" id="modal-pause">
   <div class="modal" style="max-width:480px">
@@ -550,6 +747,18 @@ function toast(msg,type=''){const t=document.getElementById('toast');t.textConte
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function monthKey(ds){if(!ds)return'Unknown';const d=new Date(ds);return d.toLocaleDateString('en-US',{year:'numeric',month:'long'});}
 
+// Enter key for login
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Enter'){
+    const ls=document.getElementById('login-screen');
+    if(ls&&ls.style.display!=='none'){
+      const loginForm=document.getElementById('login-form');
+      if(loginForm&&loginForm.style.display!=='none')doLogin();
+      else doRegister();
+    }
+  }
+});
+
 setInterval(()=>{
   document.getElementById('nav-clock').textContent=new Date().toLocaleTimeString('en-GB');
   const jobs=window._jobs||[];
@@ -614,7 +823,7 @@ function gotoPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  const map={dashboard:0,input:1,running:2,history:3,export:4,settings:5};
+  const map={dashboard:0,input:1,running:2,history:3,export:4,settings:5,admin:6};
   document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
   if(id==='dashboard')renderDashboard();
   if(id==='running')renderRunning();
@@ -1631,6 +1840,258 @@ window.gotoPage = function(id){
   }
 };
 
+
+// ============================================================
+// AUTH FUNCTIONS
+// ============================================================
+
+function showLoginScreen(){
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('pending-screen').style.display='none';
+  document.getElementById('rejected-screen').style.display='none';
+}
+function hideLoginScreen(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('pending-screen').style.display='none';
+  document.getElementById('rejected-screen').style.display='none';
+  window._ready=true;
+  renderDashboard();
+  const ui=document.getElementById('user-info');
+  if(ui&&window._currentUser){
+    const roleColors={dev:'color:#fca5a5',admin:'color:#93c5fd',user:'color:var(--text3)'};
+    const role=window._userRole||'user';
+    ui.innerHTML=`<span style="${roleColors[role]||''};font-size:9px;font-family:var(--mono);text-transform:uppercase">${role}</span> <span style="color:var(--text3)">${window._currentUser.email||''}</span>`;
+  }
+}
+function showPendingScreen(email){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('pending-screen').style.display='flex';
+  document.getElementById('pending-email').textContent=email;
+}
+function showRejectedScreen(email){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('rejected-screen').style.display='flex';
+}
+async function changeRole(uid, newRole){
+  if(window._userRole!=='dev'){toast('Only Dev can change roles','err');return;}
+  if(!confirm(`เปลี่ยน role เป็น ${newRole.toUpperCase()}?`))return;
+  const {doc,updateDoc}=window._fns;
+  await updateDoc(doc(window._db,'users',uid),{role:newRole});
+  toast(`Role updated to ${newRole.toUpperCase()}`,'ok');
+}
+
+function showAdminTab(){
+  const tab=document.getElementById('admin-tab');
+  if(tab){
+    tab.style.display='';
+    // Highlight if dev
+    if(window._userRole==='dev'){
+      tab.style.background='rgba(239,68,68,.2)';
+      tab.style.color='#fca5a5';
+      tab.style.border='1px solid rgba(239,68,68,.3)';
+      tab.style.borderRadius='6px';
+    }
+  }
+  updatePendingBadge();
+}
+function updatePendingBadge(){
+  const users=window._users||[];
+  const count=users.filter(u=>u.status==='pending').length;
+  const badge=document.getElementById('pending-count-badge');
+  if(badge)badge.textContent=count>0?` ${count}`:'';
+}
+function switchLoginTab(tab,el){
+  document.querySelectorAll('.login-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('login-form').style.display=tab==='login'?'flex':'none';
+  document.getElementById('register-form').style.display=tab==='register'?'flex':'none';
+  document.getElementById('l-err').style.display='none';
+  document.getElementById('r-err').style.display='none';
+}
+
+async function doLogin(){
+  const email=document.getElementById('l-email').value.trim();
+  const pass=document.getElementById('l-pass').value;
+  const errEl=document.getElementById('l-err');
+  if(!email||!pass){errEl.textContent='กรุณากรอก Email และ Password';errEl.style.display='block';return;}
+  try{
+    errEl.style.display='none';
+    const {signInWithEmailAndPassword}=window._authFns;
+    await signInWithEmailAndPassword(window._auth,email,pass);
+  }catch(e){
+    const msgs={'auth/user-not-found':'ไม่พบบัญชีนี้','auth/wrong-password':'รหัสผ่านไม่ถูกต้อง','auth/invalid-email':'Email ไม่ถูกต้อง','auth/invalid-credential':'Email หรือ Password ไม่ถูกต้อง'};
+    errEl.textContent=msgs[e.code]||e.message;
+    errEl.style.display='block';
+  }
+}
+
+async function doRegister(){
+  const name=document.getElementById('r-name').value.trim();
+  const email=document.getElementById('r-email').value.trim();
+  const pass=document.getElementById('r-pass').value;
+  const pass2=document.getElementById('r-pass2').value;
+  const errEl=document.getElementById('r-err');
+  if(!name||!email||!pass){errEl.textContent='กรุณากรอกข้อมูลให้ครบ';errEl.style.display='block';return;}
+  if(pass!==pass2){errEl.textContent='Password ไม่ตรงกัน';errEl.style.display='block';return;}
+  if(pass.length<6){errEl.textContent='Password ต้องมีอย่างน้อย 6 ตัวอักษร';errEl.style.display='block';return;}
+  try{
+    errEl.style.display='none';
+    const {createUserWithEmailAndPassword}=window._authFns;
+    const cred=await createUserWithEmailAndPassword(window._auth,email,pass);
+    const isDev=email.toLowerCase()===(window._devEmail||'nattapolbc2002@gmail.com').toLowerCase();
+    const role=isDev?'dev':'user';
+    const status=isDev?'approved':'pending';
+    const {doc,setDoc}=window._fns;
+    await setDoc(doc(window._db,'users',cred.user.uid),{
+      email,displayName:name,status,role,
+      createdAt:new Date().toISOString()
+    });
+    // onAuthStateChanged will handle the redirect
+  }catch(e){
+    const msgs={'auth/email-already-in-use':'Email นี้ถูกใช้งานแล้ว','auth/invalid-email':'Email ไม่ถูกต้อง','auth/weak-password':'Password ต้องมีอย่างน้อย 6 ตัวอักษร'};
+    errEl.textContent=msgs[e.code]||e.message;
+    errEl.style.display='block';
+  }
+}
+
+function showForgotPassword(){
+  const email=document.getElementById('l-email').value.trim();
+  const emailToReset=email||prompt('กรอก Email ที่ต้องการ reset password:');
+  if(!emailToReset)return;
+  const {sendPasswordResetEmail}=window._authFns;
+  sendPasswordResetEmail(window._auth, emailToReset)
+    .then(()=>{
+      const okEl=document.getElementById('l-ok');
+      const errEl=document.getElementById('l-err');
+      if(okEl){okEl.textContent='✓ ส่ง reset link ไปยัง '+emailToReset+' แล้ว กรุณาตรวจสอบ email';okEl.style.display='block';}
+      if(errEl)errEl.style.display='none';
+    })
+    .catch(e=>{
+      const errEl=document.getElementById('l-err');
+      const msgs={'auth/user-not-found':'ไม่พบ email นี้ในระบบ','auth/invalid-email':'Email ไม่ถูกต้อง'};
+      if(errEl){errEl.textContent=msgs[e.code]||e.message;errEl.style.display='block';}
+    });
+}
+
+async function doSignOut(){
+  const {signOut}=window._authFns;
+  if(typeof stopListeners==='function')stopListeners();
+  await signOut(window._auth);
+  window._currentUser=null;
+  window._isAdmin=false;
+  window._userRole=null;
+  window._jobs=[];
+  window._users=[];
+  const at=document.getElementById('admin-tab');
+  if(at)at.style.display='none';
+}
+
+// ---- ADMIN PANEL ----
+async function approveUser(uid){
+  const {doc,updateDoc}=window._fns;
+  await updateDoc(doc(window._db,'users',uid),{status:'approved'});
+  toast('✅ User approved','ok');
+}
+async function rejectUser(uid){
+  if(!confirm('ปฏิเสธ user นี้?'))return;
+  const {doc,updateDoc}=window._fns;
+  await updateDoc(doc(window._db,'users',uid),{status:'rejected'});
+  toast('User rejected');
+}
+async function deleteUser(uid){
+  if(!confirm('ลบ user นี้ออกจากระบบ?'))return;
+  const {doc,deleteDoc}=window._fns;
+  await deleteDoc(doc(window._db,'users',uid));
+  toast('User deleted');
+}
+async function revokeUser(uid){
+  if(!confirm('ยกเลิกสิทธิ์ user นี้?'))return;
+  const {doc,updateDoc}=window._fns;
+  await updateDoc(doc(window._db,'users',uid),{status:'rejected'});
+  toast('Access revoked');
+}
+
+function renderAdminPanel(){
+  const users=window._users||[];
+  const myRole=window._userRole||'user';
+  updatePendingBadge();
+  const pending=users.filter(u=>u.status==='pending');
+  const approved=users.filter(u=>u.status==='approved');
+  const rejected=users.filter(u=>u.status==='rejected');
+
+  const pendingEl=document.getElementById('admin-pending');
+  const approvedEl=document.getElementById('admin-approved');
+  const rejectedEl=document.getElementById('admin-rejected');
+  const countEl=document.getElementById('pending-count-text');
+  if(!pendingEl)return;
+
+  if(countEl)countEl.textContent=pending.length?`(${pending.length})` : '(0)';
+
+  const roleBadge=(role)=>{
+    const styles={dev:'background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3)',admin:'background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.3)',user:'background:var(--bg3);color:var(--text2);border:1px solid var(--border)'};
+    return`<span style="font-size:10px;padding:2px 8px;border-radius:20px;font-family:var(--mono);${styles[role]||styles.user}">${(role||'user').toUpperCase()}</span>`;
+  };
+
+  // Role options for select — only dev can assign admin, admin can only approve users
+  const roleOptions=(currentRole,uid)=>{
+    if(myRole!=='dev') return ''; // only dev can change roles
+    const opts=['user','admin','dev'].map(r=>`<option value="${r}"${r===currentRole?' selected':''}>${r.toUpperCase()}</option>`).join('');
+    return`<select onchange="changeRole('${uid}',this.value)" style="font-size:11px;padding:3px 6px;width:90px">${opts}</select>`;
+  };
+
+  pendingEl.innerHTML=pending.length?pending.map(u=>`
+    <div class="user-row">
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;font-weight:500">${u.displayName||'—'}</span>
+          ${roleBadge(u.role)}
+        </div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">${u.email}</div>
+        <div style="font-size:10px;color:var(--text3)">สมัครเมื่อ: ${u.createdAt?new Date(u.createdAt).toLocaleString('en-GB'):'—'}</div>
+      </div>
+      <span class="status-pill sp-pending">Pending</span>
+      <button class="btn btn-success btn-sm" onclick="approveUser('${u._uid}')">✓ Approve</button>
+      <button class="btn btn-danger btn-sm" onclick="rejectUser('${u._uid}')">✕ Reject</button>
+    </div>`).join(''):'<div style="font-size:13px;color:var(--text3);padding:12px 0;text-align:center">No pending requests ✓</div>';
+
+  approvedEl.innerHTML=approved.length?approved.map(u=>`
+    <div class="user-row">
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;font-weight:500">${u.displayName||'—'}</span>
+          ${roleBadge(u.role)}
+        </div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">${u.email}</div>
+      </div>
+      <span class="status-pill sp-approved">Approved</span>
+      ${roleOptions(u.role, u._uid)}
+      ${u.role!=='dev'?`<button class="btn btn-danger btn-sm" onclick="revokeUser('${u._uid}')">Revoke</button>`:''}
+    </div>`).join(''):'<div class="empty">No approved users</div>';
+
+  rejectedEl.innerHTML=rejected.length?rejected.map(u=>`
+    <div class="user-row">
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${u.displayName||'—'}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">${u.email}</div>
+      </div>
+      <span class="status-pill sp-rejected">Rejected</span>
+      <button class="btn btn-ghost btn-sm" onclick="approveUser('${u._uid}')">Re-approve</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteUser('${u._uid}')">Delete</button>
+    </div>`).join(''):'<div class="empty">No rejected users</div>';
+}
+
+// Patch gotoPage for admin
+const _origGotoPage2 = window.gotoPage;
+window.gotoPage = function(id){
+  if(id==='admin'&&!window._isAdmin){toast('Dev/Admin only','err');return;}
+  _origGotoPage2(id);
+  if(id==='admin'){
+    document.getElementById('admin-tab').classList.add('active');
+    renderAdminPanel();
+  }
+};
+
+// Fix nav map for admin tab
 </script>
 </body>
 </html>
