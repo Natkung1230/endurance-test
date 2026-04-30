@@ -47,6 +47,24 @@ function canApprove(role) {
 let _jobsUnsubscribe = null;
 let _usersUnsubscribe = null;
 
+function startGuestListeners() {
+  if (_jobsUnsubscribe) return;
+  const q = query(collection(db, "jobs"), orderBy("startdate", "desc"));
+  _jobsUnsubscribe = onSnapshot(q, (snapshot) => {
+    window._jobs = [];
+    snapshot.forEach(d => { window._jobs.push({ _id: d.id, ...d.data() }); });
+    window._jobs.sort((a,b) => { const dm=new Date(b.startdate)-new Date(a.startdate); return dm!==0?dm:a.no-b.no; });
+    if (window._ready) {
+      renderDashboard();
+      renderRunning();
+      const activePage = document.querySelector('.page.active');
+      if (activePage && activePage.id === 'page-history') renderHistory();
+    }
+    const si = document.getElementById('sync-indicator');
+    if(si) si.textContent = 'Live ' + new Date().toLocaleTimeString('en-GB');
+  }, (err) => { console.log('Guest listener:', err.code); });
+}
+
 function startListeners() {
   if (_jobsUnsubscribe) return; // already listening
   const q = query(collection(db, "jobs"), orderBy("startdate", "desc"));
@@ -83,11 +101,15 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) {
     stopListeners();
     window._currentUser = null;
-    window._userRole = null;
+    window._userRole = 'guest';
     window._isAdmin = false;
-    if (typeof showLoginScreen === 'function') showLoginScreen();
+    window._isGuest = true;
+    // Guest: can view but not edit - start read-only listeners
+    startGuestListeners();
+    if (typeof hideLoginScreen === 'function') hideLoginScreen();
     return;
   }
+  window._isGuest = false;
   try {
     const userRef = doc(db, 'users', user.uid);
     const userDoc = await getDoc(userRef);
@@ -344,7 +366,7 @@ tr:last-child td{border-bottom:none}
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="gotoPage('dashboard')">Dashboard</button>
-    <button class="nav-tab" onclick="gotoPage('input')">New Job</button>
+    <button class="nav-tab" id="new-job-tab" onclick="gotoPage('input')">New Job</button>
     <button class="nav-tab" onclick="gotoPage('running')">Active Jobs</button>
     <button class="nav-tab" onclick="gotoPage('history')">History</button>
     <button class="nav-tab" onclick="gotoPage('export')">Export Excel</button>
@@ -354,7 +376,7 @@ tr:last-child td{border-bottom:none}
   <div class="nav-right" style="text-align:right">
   <span class="sync-dot"></span><span id="sync-indicator">Connecting...</span>
   <span id="user-info" style="margin-left:8px;font-size:10px;color:var(--text3)"></span>
-  <button onclick="doSignOut()" style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--text3);margin-left:6px;font-family:inherit">Sign Out</button>
+  <button id="nav-auth-btn" onclick="handleNavAuth()" style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--accent);margin-left:6px;font-family:inherit;text-decoration:underline">Sign In</button>
   <br><span id="nav-clock">--:--:--</span>
 </div>
 </nav>
@@ -883,6 +905,7 @@ function eCalc(){
 
 async function saveJob(){
   const g=id=>document.getElementById(id).value;
+  if(window._isGuest||!window._currentUser){toast('กรุณา Sign In ก่อนเพิ่มข้อมูล','err');handleNavAuth();return;}
   if(!g('f-partno')||!g('f-cycles')||!g('f-startdate')){toast('Required: Part No., Cycles, Start Date','err');return;}
   const btn=document.getElementById('save-btn');
   btn.textContent='Saving...';btn.disabled=true;
@@ -1080,7 +1103,7 @@ function jobCard(j,type){
     ${j.note?`<div style="font-size:10px;color:var(--text3);margin-top:2px">Note: ${j.note}</div>`:''}
     <div style="margin-top:9px;display:flex;gap:5px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="openDetail('${fid}')">Detail</button>
-      <button class="btn btn-ghost btn-sm" onclick="openEdit('${fid}')">Edit</button>
+      ${!window._isGuest&&window._currentUser?`<button class="btn btn-ghost btn-sm" onclick="openEdit('${fid}')">Edit</button>`:''}
       ${type==='running'?`
         ${j.paused?
           `<button class="btn btn-resume btn-sm" onclick="resumeJob('${fid}')">▶ Resume</button>`:
@@ -1152,6 +1175,7 @@ function renderRunning(){
 }
 
 async function cancelJob(fid){
+  if(window._isGuest||!window._currentUser){toast('Sign In required','err');handleNavAuth();return;}
   const jobs=window._jobs||[];
   const j=jobs.find(x=>x._id===fid);
   if(!j)return;
@@ -1179,6 +1203,7 @@ function openPause(fid){
 }
 
 async function confirmPause(){
+  if(window._isGuest||!window._currentUser){toast('Sign In required','err');return;}
   const fid=document.getElementById('pause-fid').value;
   const reason=document.getElementById('pause-reason').value;
   const note=document.getElementById('pause-note').value;
@@ -1202,6 +1227,7 @@ async function confirmPause(){
 }
 
 async function resumeJob(fid){
+  if(window._isGuest||!window._currentUser){toast('Sign In required','err');return;}
   const j=(window._jobs||[]).find(x=>x._id===fid);
   if(!j||!j.paused)return;
   const now=new Date().getTime();
@@ -1268,6 +1294,7 @@ function previewAdjust(){
 }
 
 async function confirmAdjust(){
+  if(window._isGuest||!window._currentUser){toast('Sign In required','err');return;}
   const fid=document.getElementById('adj-fid').value;
   const j=(window._jobs||[]).find(x=>x._id===fid);
   const newCycles=parseInt(document.getElementById('adj-cycles').value)||0;
@@ -1388,8 +1415,9 @@ function renderHistory(){
         <td>${sBadgeJ(j)}</td><td style="color:var(--text3)">${j.note||''}</td>
         <td><div style="display:flex;gap:4px">
           <button class="btn btn-ghost btn-sm" onclick="openDetail('${fid}')">Detail</button>
+          ${!window._isGuest&&window._currentUser?`
           <button class="btn btn-ghost btn-sm" onclick="openEdit('${fid}')">Edit</button>
-          <button class="btn btn-danger btn-sm" onclick="delJob('${fid}')">Del</button>
+          <button class="btn btn-danger btn-sm" onclick="delJob('${fid}')">Del</button>`:''}
         </div></td>
       </tr>`;}).join('')}</tbody>
     </table></div>`).join('');
@@ -1405,6 +1433,7 @@ function openEdit(fid){
 }
 
 async function saveEdit(){
+  if(window._isGuest||!window._currentUser){toast('Sign In required','err');handleNavAuth();return;}
   const fid=document.getElementById('e-fid').value;
   const l1=parseFloat(document.getElementById('e-l1').value)||0,l2=parseFloat(document.getElementById('e-l2').value)||0;
   const sr=parseFloat(document.getElementById('e-sr').value)||0,pcs=parseInt(document.getElementById('e-pcs').value)||1;
@@ -1857,10 +1886,42 @@ function hideLoginScreen(){
   window._ready=true;
   renderDashboard();
   const ui=document.getElementById('user-info');
-  if(ui&&window._currentUser){
-    const roleColors={dev:'color:#fca5a5',admin:'color:#93c5fd',user:'color:var(--text3)'};
+  const authBtn=document.getElementById('nav-auth-btn');
+  if(window._isGuest){
+    if(ui)ui.innerHTML=`<span style="font-size:10px;color:var(--text3);background:var(--bg3);padding:2px 7px;border-radius:10px;font-family:var(--mono)">GUEST</span>`;
+    if(authBtn){authBtn.textContent='Sign In';authBtn.style.display='';}
+    showGuestBanner();
+  } else if(window._currentUser){
+    const roleColors={dev:'color:#fca5a5',admin:'color:#93c5fd',user:'color:var(--green)'};
     const role=window._userRole||'user';
-    ui.innerHTML=`<span style="${roleColors[role]||''};font-size:9px;font-family:var(--mono);text-transform:uppercase">${role}</span> <span style="color:var(--text3)">${window._currentUser.email||''}</span>`;
+    if(ui)ui.innerHTML=`<span style="${roleColors[role]||''};font-size:9px;font-family:var(--mono);text-transform:uppercase;background:var(--bg3);padding:2px 7px;border-radius:10px">${role}</span> <span style="color:var(--text3);font-size:10px">${window._currentUser.email||''}</span>`;
+    if(authBtn){authBtn.textContent='Sign Out';authBtn.style.display='';}
+    hideGuestBanner();
+  }
+}
+
+function showGuestBanner(){
+  let b=document.getElementById('guest-banner');
+  if(!b){
+    b=document.createElement('div');
+    b.id='guest-banner';
+    b.style.cssText='position:fixed;bottom:0;left:0;right:0;background:rgba(59,130,246,.12);border-top:1px solid rgba(59,130,246,.3);padding:8px 20px;display:flex;align-items:center;justify-content:space-between;z-index:200;font-size:12px;';
+    b.innerHTML=`<span style="color:var(--text2)">👁 <strong>View Only</strong> — คุณกำลังดูในโหมด Guest ไม่สามารถแก้ไขข้อมูลได้</span>
+      <button onclick="handleNavAuth()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:12px;cursor:pointer;font-family:inherit">Sign In / Register</button>`;
+    document.body.appendChild(b);
+  }
+  b.style.display='flex';
+}
+function hideGuestBanner(){
+  const b=document.getElementById('guest-banner');
+  if(b)b.style.display='none';
+}
+function handleNavAuth(){
+  if(window._isGuest||!window._currentUser){
+    // Show login screen
+    document.getElementById('login-screen').style.display='flex';
+  } else {
+    doSignOut();
   }
 }
 function showPendingScreen(email){
@@ -1873,7 +1934,8 @@ function showRejectedScreen(email){
   document.getElementById('rejected-screen').style.display='flex';
 }
 async function changeRole(uid, newRole){
-  if(window._userRole!=='dev'){toast('Only Dev can change roles','err');return;}
+  if(window._isGuest||!window._currentUser){toast('Sign In required','err');return;}
+  if(window._userRole!=='dev'){toast('Only DEV can change roles','err');return;}
   if(!confirm(`เปลี่ยน role เป็น ${newRole.toUpperCase()}?`))return;
   const {doc,updateDoc}=window._fns;
   await updateDoc(doc(window._db,'users',uid),{role:newRole});
@@ -1988,11 +2050,13 @@ async function doSignOut(){
 
 // ---- ADMIN PANEL ----
 async function approveUser(uid){
+  if(!canApprove(window._userRole)){toast('Dev/Admin only','err');return;}
   const {doc,updateDoc}=window._fns;
   await updateDoc(doc(window._db,'users',uid),{status:'approved'});
   toast('✅ User approved','ok');
 }
 async function rejectUser(uid){
+  if(!canApprove(window._userRole)){toast('Dev/Admin only','err');return;}
   if(!confirm('ปฏิเสธ user นี้?'))return;
   const {doc,updateDoc}=window._fns;
   await updateDoc(doc(window._db,'users',uid),{status:'rejected'});
@@ -2084,6 +2148,7 @@ function renderAdminPanel(){
 const _origGotoPage2 = window.gotoPage;
 window.gotoPage = function(id){
   if(id==='admin'&&!window._isAdmin){toast('Dev/Admin only','err');return;}
+  if(id==='input'&&(window._isGuest||!window._currentUser)){toast('กรุณา Sign In ก่อนเพิ่มงาน','err');handleNavAuth();return;}
   _origGotoPage2(id);
   if(id==='admin'){
     document.getElementById('admin-tab').classList.add('active');
