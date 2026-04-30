@@ -111,6 +111,9 @@ textarea{resize:vertical;min-height:55px}
 .btn-success{background:var(--green2);color:#fff}.btn-success:hover{background:#15803d}
 .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}.btn-ghost:hover{background:var(--bg3);color:var(--text)}
 .btn-danger{background:transparent;color:var(--red);border:1px solid #7f1d1d}.btn-danger:hover{background:#450a0a}
+.btn-amber{background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.4)}.btn-amber:hover{background:rgba(245,158,11,.25)}
+.btn-pause{background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.4)}.btn-pause:hover{background:rgba(245,158,11,.25)}
+.btn-resume{background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.4)}.btn-resume:hover{background:rgba(34,197,94,.25)}
 .btn-row{display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap}
 .btn-sm{padding:4px 10px;font-size:11px;border-radius:6px}
 .tbl-wrap{overflow-x:auto}
@@ -391,6 +394,83 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<!-- PAUSE MODAL -->
+<div class="ov" id="modal-pause">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">Pause Job <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-pause')">✕</button></div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:14px" id="pause-job-info"></div>
+    <div class="fl" style="margin-bottom:12px">
+      <label>สาเหตุที่หยุด</label>
+      <select id="pause-reason">
+        <option value="ไฟตก">ไฟตก / Power Failure</option>
+        <option value="เครื่องเสีย">เครื่องเสีย / Machine Breakdown</option>
+        <option value="ปรับแต่ง">ปรับแต่ง / Adjustment</option>
+        <option value="PM">PM / Preventive Maintenance</option>
+        <option value="อื่นๆ">อื่นๆ / Other</option>
+      </select>
+    </div>
+    <div class="fl" style="margin-bottom:14px">
+      <label>หมายเหตุ</label>
+      <input type="text" id="pause-note" placeholder="รายละเอียดเพิ่มเติม...">
+    </div>
+    <input type="hidden" id="pause-fid">
+    <div class="btn-row">
+      <button class="btn btn-amber" onclick="confirmPause()">⏸ Pause Job</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-pause')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADJUST CYCLES MODAL -->
+<div class="ov" id="modal-adjust">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">Adjust Cycles <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-adjust')">✕</button></div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:4px" id="adjust-job-info"></div>
+    <div style="background:var(--bg3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="color:var(--text3)">Cycles ปัจจุบัน (ระบบ)</span>
+        <span style="font-family:var(--mono);color:var(--teal)" id="adj-system-cyc">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:var(--text3)">เวลาที่ใช้ไป</span>
+        <span style="font-family:var(--mono);color:var(--text2)" id="adj-elapsed-time">—</span>
+      </div>
+    </div>
+    <div class="fl" style="margin-bottom:12px">
+      <label>Cycle จริงหน้างาน (ที่ต้องการกำหนด)</label>
+      <input type="number" id="adj-cycles" placeholder="กรอก cycle จริง" min="0" oninput="previewAdjust()">
+    </div>
+    <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;display:none" id="adj-preview">
+      <div style="font-size:11px;font-weight:500;color:var(--accent);margin-bottom:6px">Preview การเปลี่ยนแปลง</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="color:var(--text3)">Cycle ต่าง (±)</span>
+        <span style="font-family:var(--mono)" id="adj-diff">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="color:var(--text3)">เวลาที่ต้องปรับ</span>
+        <span style="font-family:var(--mono)" id="adj-time-diff">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="color:var(--text3)">เวลาเริ่มใหม่ (เสมือน)</span>
+        <span style="font-family:var(--mono);color:var(--teal)" id="adj-new-start">—</span>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:var(--text3)">Finish ใหม่ (คาดการณ์)</span>
+        <span style="font-family:var(--mono);color:var(--amber)" id="adj-new-finish">—</span>
+      </div>
+    </div>
+    <div class="fl" style="margin-bottom:14px">
+      <label>หมายเหตุการปรับ</label>
+      <input type="text" id="adj-note" placeholder="เช่น ปรับ cycle เนื่องจากไฟตก 3 ชั่วโมง">
+    </div>
+    <input type="hidden" id="adj-fid">
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="confirmAdjust()">✓ Apply Adjustment</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-adjust')">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- DETAIL MODAL -->
 <div class="ov" id="modal-detail">
   <div class="modal">
@@ -488,9 +568,9 @@ setInterval(()=>{
     }
   });
 
-  // Auto-promote Run → Finished when finish time reached
-  jobs.filter(j=>j.status==='Run').forEach(j=>{
-    const fin2=finishDt(j);
+  // Auto-promote Run → Finished when finish time reached (uses pause-aware finish)
+  jobs.filter(j=>j.status==='Run'&&!j.paused).forEach(j=>{
+    const fin2=typeof calcFinishWithPause==='function'?calcFinishWithPause(j):finishDt(j);
     if(fin2&&now>=fin2){
       const {doc,updateDoc}=window._fns||{};
       if(doc&&updateDoc&&window._db){
@@ -501,8 +581,9 @@ setInterval(()=>{
 
   const running=jobs.filter(j=>j.status==='Run');
   running.forEach(j=>{
-    const fin2=finishDt(j);
-    const elMins=Math.max(0,(now-startDt(j))/60000);
+    if(j.paused) return; // Don't update paused jobs
+    const elMins=typeof calcElapsedMins==='function'?calcElapsedMins(j):Math.max(0,(now-startDt(j))/60000);
+    const fin2=typeof calcFinishWithPause==='function'?calcFinishWithPause(j):finishDt(j);
     const tm=j.cycles/(j.speed||500);
     const pct=Math.min(100,Math.round(elMins/tm*100));
     const elCycles=Math.min(j.cycles,Math.round(elMins*(j.speed||500)));
@@ -697,12 +778,15 @@ function renderDashboard(){
       const ms=startDt(j).getTime()-now2.getTime();
       const mins=ms/60000;
       const hh=Math.floor(mins/60),mm=Math.round(mins%60);
-      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">
         <div>
-          <span style="font-size:12px;font-weight:500">M${j.machine} #${j.no} — ${j.customer} / ${j.lotno}</span>
-          <span style="font-size:10px;color:var(--text3);margin-left:8px">${j.startdate} ${pad(j.startH)}:${pad(j.startM)}</span>
+          <div style="font-size:12px;font-weight:500">M${j.machine} #${j.no} — ${j.customer} / ${j.lotno}</div>
+          <div style="display:flex;gap:12px;margin-top:3px;flex-wrap:wrap">
+            <span style="font-size:10px;color:var(--teal);font-family:var(--mono)">${j.partno||'—'}</span>
+            <span style="font-size:10px;color:var(--text3)">${j.startdate} ${j.startH}:${pad(j.startM)}</span>
+          </div>
         </div>
-        <span style="font-family:var(--mono);font-size:12px;color:var(--red);font-weight:500">เริ่มใน ${hh}h ${mm}m</span>
+        <span style="font-family:var(--mono);font-size:12px;color:var(--red);font-weight:500;white-space:nowrap;margin-left:12px">เริ่มใน ${hh}h ${mm}m</span>
       </div>`;
     }).join('');
   } else {
@@ -714,11 +798,40 @@ function renderDashboard(){
   document.getElementById('dash-customer').innerHTML=`<table style="width:100%;font-size:12px"><thead><tr><th>Customer</th><th>Jobs</th><th>Finished</th><th>Total Cycles</th><th>Share</th></tr></thead><tbody>${Object.entries(cust).sort((a,b)=>b[1].c-a[1].c).map(([c,v])=>{const p=tc?Math.round(v.c/tc*100):0;return`<tr><td>${c}</td><td>${v.n}</td><td>${v.d}</td><td>${v.c.toLocaleString()}</td><td><div style="display:flex;align-items:center;gap:6px"><div class="prog-bg" style="width:90px"><div class="prog-fill" style="width:${p}%;background:var(--accent)"></div></div><span style="font-size:10px;color:var(--text3)">${p}%</span></div></td></tr>`;}).join('')}</tbody></table>`;
 }
 
+function calcElapsedMins(j){
+  // Calculate effective elapsed minutes accounting for pause/downtime and cycle adjustments
+  const now=new Date().getTime();
+  const effectiveStart=j.adjustedStartMs||startDt(j).getTime();
+  let elapsed=(now-effectiveStart)/60000;
+  // Subtract total downtime
+  const totalDowntime=(j.totalDowntimeMins||0);
+  // If currently paused, don't count time since pause
+  if(j.paused&&j.pausedAt){
+    const pausedMins=(now-j.pausedAt)/60000;
+    elapsed-=pausedMins;
+  }
+  elapsed-=totalDowntime;
+  return Math.max(0,elapsed);
+}
+
+function calcFinishWithPause(j){
+  if(!j.startdate||!j.cycles||!j.speed)return null;
+  const totalMins=j.cycles/(j.speed||500);
+  const elapsedMins=calcElapsedMins(j);
+  // If elapsed >= total, job is done
+  if(elapsedMins>=totalMins) return new Date(new Date().getTime()-1000); // 1 sec ago = finished
+  const remainMins=Math.max(0,totalMins-elapsedMins);
+  return new Date(new Date().getTime()+remainMins*60000);
+}
+
 function jobCard(j,type){
-  const fin2=finishDt(j),dd=dhm(j),now=new Date();
-  const elMins=Math.max(0,(now-startDt(j))/60000);
-  const tm=j.cycles/(j.speed||500),pct=Math.min(100,Math.round(elMins/tm*100));
+  const now=new Date();
+  const elMins=type==='running'?calcElapsedMins(j):0;
+  const tm=j.cycles/(j.speed||500);
+  const pct=Math.min(100,Math.round(elMins/tm*100));
   const elCycles=Math.min(j.cycles,Math.round(elMins*(j.speed||500)));
+  const fin2=type==='running'?calcFinishWithPause(j):finishDt(j);
+  const dd=dhm(j);
   const rem=fin2?Math.max(0,(fin2-now)/60000):0;
   const rd=Math.floor(rem/1440),rh=Math.floor((rem%1440)/60),rm=Math.round(rem%60);
   const fid=j._id;
@@ -735,16 +848,20 @@ function jobCard(j,type){
       <div class="jm">PCS: <span>${j.pcs}</span></div>
     </div>
     ${type==='running'?`
+    ${j.paused?`<div style="display:flex;align-items:center;gap:6px;background:rgba(245,158,11,.12);border-radius:6px;padding:5px 9px;margin-bottom:8px;font-size:11px;color:var(--amber)">
+      <span>⏸</span><span>PAUSED — ${j.pauseReason||'หยุดชั่วคราว'}</span>
+      ${j.totalDowntimeMins?`<span style="margin-left:auto;opacity:.7">รวม downtime: ${Math.floor((j.totalDowntimeMins||0)/60)}h ${Math.round((j.totalDowntimeMins||0)%60)}m</span>`:''}
+    </div>`:''}
     <div style="margin-bottom:6px">
       <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:2px">
         <span id="${cid}-cyc">${elCycles.toLocaleString()} / ${j.cycles.toLocaleString()} cycles</span>
         <span>${pct}%</span>
       </div>
-      <div class="prog-bg"><div class="prog-fill" id="${cid}-bar" style="width:${pct}%;background:var(--green)"></div></div>
+      <div class="prog-bg"><div class="prog-fill" id="${cid}-bar" style="width:${pct}%;background:${j.paused?'var(--amber)':'var(--green)'}"></div></div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
       <span style="font-size:10px;color:var(--text3)">Finish: ${fmtDT(fin2)}</span>
-      <span class="countdown" id="${cid}-rem">${rd}d ${rh}h ${rm}m</span>
+      <span class="countdown" id="${cid}-rem" style="color:${j.paused?'var(--amber)':'var(--teal)'}">${j.paused?'PAUSED':`${rd}d ${rh}h ${rm}m`}</span>
     </div>`:`
     <div style="display:flex;justify-content:space-between;font-size:10px;flex-wrap:wrap;gap:3px;margin-top:5px">
       <span style="color:var(--text3)">Start: ${j.startdate} ${j.startH}:${pad(j.startM)}</span>
@@ -755,6 +872,13 @@ function jobCard(j,type){
     <div style="margin-top:9px;display:flex;gap:5px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="openDetail('${fid}')">Detail</button>
       <button class="btn btn-ghost btn-sm" onclick="openEdit('${fid}')">Edit</button>
+      ${type==='running'?`
+        ${j.paused?
+          `<button class="btn btn-resume btn-sm" onclick="resumeJob('${fid}')">▶ Resume</button>`:
+          `<button class="btn btn-pause btn-sm" onclick="openPause('${fid}')">⏸ Pause</button>`
+        }
+        <button class="btn btn-ghost btn-sm" onclick="openAdjust('${fid}')">⚙ Cycles</button>
+      `:''}
       <button class="btn btn-danger btn-sm" onclick="cancelJob('${fid}')">Cancel</button>
     </div>
   </div>`;
@@ -831,6 +955,135 @@ async function cancelJob(fid){
   }catch(e){toast('Error: '+e.message,'err');}
 }
 
+// ============================================================
+// PAUSE / RESUME / ADJUST CYCLES SYSTEM
+// ============================================================
+
+function openPause(fid){
+  const j=(window._jobs||[]).find(x=>x._id===fid);
+  if(!j)return;
+  document.getElementById('pause-fid').value=fid;
+  document.getElementById('pause-job-info').textContent=`M${j.machine} #${j.no} — ${j.customer} / ${j.lotno} (${j.partno})`;
+  document.getElementById('pause-reason').value='ไฟตก';
+  document.getElementById('pause-note').value='';
+  document.getElementById('modal-pause').classList.add('open');
+}
+
+async function confirmPause(){
+  const fid=document.getElementById('pause-fid').value;
+  const reason=document.getElementById('pause-reason').value;
+  const note=document.getElementById('pause-note').value;
+  const j=(window._jobs||[]).find(x=>x._id===fid);
+  if(!j)return;
+  const now=new Date().getTime();
+  // Build downtime log entry
+  const dtLog=j.downtimeLog||[];
+  dtLog.push({pausedAt:now,resumedAt:null,reason,note});
+  try{
+    const {doc,updateDoc}=window._fns;
+    await updateDoc(doc(window._db,'jobs',fid),{
+      paused:true,
+      pausedAt:now,
+      pauseReason:reason,
+      downtimeLog:dtLog
+    });
+    toast(`⏸ Job #${j.no} paused — ${reason}`,'ok');
+    closeModal('modal-pause');
+  }catch(e){toast('Error: '+e.message,'err');}
+}
+
+async function resumeJob(fid){
+  const j=(window._jobs||[]).find(x=>x._id===fid);
+  if(!j||!j.paused)return;
+  const now=new Date().getTime();
+  const pausedAt=j.pausedAt||now;
+  const downtimeMins=(now-pausedAt)/60000;
+  const totalDowntimeMins=(j.totalDowntimeMins||0)+downtimeMins;
+  // Update last downtime log entry
+  const dtLog=(j.downtimeLog||[]).map((e,i,arr)=>i===arr.length-1?{...e,resumedAt:now,durationMins:Math.round(downtimeMins)}:e);
+  try{
+    const {doc,updateDoc}=window._fns;
+    await updateDoc(doc(window._db,'jobs',fid),{
+      paused:false,
+      pausedAt:null,
+      pauseReason:null,
+      totalDowntimeMins:parseFloat(totalDowntimeMins.toFixed(2)),
+      downtimeLog:dtLog
+    });
+    const hh=Math.floor(downtimeMins/60),mm=Math.round(downtimeMins%60);
+    toast(`▶ Job #${j.no} resumed — downtime: ${hh}h ${mm}m`,'ok');
+  }catch(e){toast('Error: '+e.message,'err');}
+}
+
+function openAdjust(fid){
+  const j=(window._jobs||[]).find(x=>x._id===fid);
+  if(!j)return;
+  const elMins=calcElapsedMins(j);
+  const elCycles=Math.min(j.cycles,Math.round(elMins*(j.speed||500)));
+  const elH=Math.floor(elMins/60),elM=Math.round(elMins%60);
+  document.getElementById('adj-fid').value=fid;
+  document.getElementById('adjust-job-info').textContent=`M${j.machine} #${j.no} — ${j.customer} / ${j.lotno}`;
+  document.getElementById('adj-system-cyc').textContent=elCycles.toLocaleString()+' cycles';
+  document.getElementById('adj-elapsed-time').textContent=`${elH}h ${elM}m`;
+  document.getElementById('adj-cycles').value='';
+  document.getElementById('adj-note').value='';
+  document.getElementById('adj-preview').style.display='none';
+  document.getElementById('modal-adjust').classList.add('open');
+}
+
+function previewAdjust(){
+  const fid=document.getElementById('adj-fid').value;
+  const j=(window._jobs||[]).find(x=>x._id===fid);
+  if(!j)return;
+  const newCycles=parseInt(document.getElementById('adj-cycles').value)||0;
+  if(!newCycles){document.getElementById('adj-preview').style.display='none';return;}
+  const elMins=calcElapsedMins(j);
+  const systemCycles=Math.min(j.cycles,Math.round(elMins*(j.speed||500)));
+  const diff=newCycles-systemCycles;
+  const timeDiffMins=diff/(j.speed||500);
+  const absDiff=Math.abs(timeDiffMins);
+  const dh=Math.floor(absDiff/60),dm=Math.round(absDiff%60);
+  const sign=diff>=0?'+':'-';
+  const now=new Date();
+  // Adjust virtual start time: if actual cycles > system cycles, machine ran more → virtual start earlier
+  const newStartMs=now.getTime()-(newCycles/(j.speed||500))*60000-(j.totalDowntimeMins||0)*60000;
+  const newStart=new Date(newStartMs);
+  const remMins=Math.max(0,(j.cycles-newCycles)/(j.speed||500));
+  const newFinish=new Date(now.getTime()+remMins*60000);
+  document.getElementById('adj-diff').textContent=`${sign}${Math.abs(diff).toLocaleString()} cycles (${sign}${dh}h ${dm}m)`;
+  document.getElementById('adj-diff').style.color=diff>=0?'var(--green)':'var(--red)';
+  document.getElementById('adj-time-diff').textContent=`${sign}${dh}h ${dm}m`;
+  document.getElementById('adj-new-start').textContent=fmtDT(newStart);
+  document.getElementById('adj-new-finish').textContent=fmtDT(newFinish);
+  document.getElementById('adj-preview').style.display='block';
+}
+
+async function confirmAdjust(){
+  const fid=document.getElementById('adj-fid').value;
+  const j=(window._jobs||[]).find(x=>x._id===fid);
+  const newCycles=parseInt(document.getElementById('adj-cycles').value)||0;
+  const note=document.getElementById('adj-note').value;
+  if(!j||!newCycles){toast('กรอก Cycle ที่ต้องการ','err');return;}
+  const now=new Date().getTime();
+  // Calculate adjusted virtual start time
+  const newStartMs=now-(newCycles/(j.speed||500))*60000-(j.totalDowntimeMins||0)*60000;
+  // Log the adjustment
+  const adjLog=j.adjustLog||[];
+  const elMins=calcElapsedMins(j);
+  const oldCycles=Math.round(elMins*(j.speed||500));
+  adjLog.push({at:now,oldCycles,newCycles,diff:newCycles-oldCycles,note});
+  try{
+    const {doc,updateDoc}=window._fns;
+    await updateDoc(doc(window._db,'jobs',fid),{
+      adjustedStartMs:newStartMs,
+      adjustLog:adjLog
+    });
+    const diff=newCycles-oldCycles;
+    toast(`⚙ Cycles adjusted: ${diff>=0?'+':''}${diff.toLocaleString()} cycles`,'ok');
+    closeModal('modal-adjust');
+  }catch(e){toast('Error: '+e.message,'err');}
+}
+
 function exportActiveExcel(){
   const jobs=window._jobs||[];
   const mf=document.getElementById('filter-run-m').value;
@@ -872,6 +1125,14 @@ function openDetail(fid){
       <div class="det-row"><div class="det-key">Start</div><div class="det-val">${j.startdate} ${j.startH}:${pad(j.startM)}</div></div>
       <div class="det-row"><div class="det-key">Estimated Finish</div><div class="det-val" style="color:var(--teal)">${fmtDT(fin2)}</div></div>
       <div class="det-row"><div class="det-key">Duration</div><div class="det-val">${dd.d}d ${dd.h}h ${dd.m}m (${dd.total.toFixed(3)} days)</div></div>
+      ${(j.downtimeLog&&j.downtimeLog.length)?`
+      <div class="det-sec">Downtime Log (${j.downtimeLog.length} events | รวม: ${Math.floor((j.totalDowntimeMins||0)/60)}h ${Math.round((j.totalDowntimeMins||0)%60)}m)</div>
+      ${j.downtimeLog.map(e=>{
+        const dur=e.durationMins?`${Math.floor(e.durationMins/60)}h ${Math.round(e.durationMins%60)}m`:(e.resumedAt?`${Math.floor((e.resumedAt-e.pausedAt)/60000/60)}h`:'กำลัง pause...');
+        return`<div class="det-row"><div class="det-key" style="font-size:11px">${new Date(e.pausedAt).toLocaleString('en-GB')}</div><div class="det-val" style="font-size:11px">${e.reason} — ${dur}${e.note?' ('+e.note+')':''}</div></div>`;
+      }).join('')}
+      ${(j.adjustLog&&j.adjustLog.length)?`<div class="det-sec">Cycle Adjustment Log</div>${j.adjustLog.map(e=>`<div class="det-row"><div class="det-key" style="font-size:11px">${new Date(e.at).toLocaleString('en-GB')}</div><div class="det-val" style="font-size:11px">${e.diff>=0?'+':''}${e.diff.toLocaleString()} cycles${e.note?' — '+e.note:''}</div></div>`).join('')}`:''}
+      `:''}
       ${j.status==='Run'?`
       <div class="det-row"><div class="det-key">Elapsed Cycles</div><div class="det-val">${elC.toLocaleString()} / ${j.cycles.toLocaleString()} (${pct}%)</div></div>
       <div class="det-row"><div class="det-key">Remaining Cycles</div><div class="det-val" style="color:var(--teal)">${(j.cycles-elC).toLocaleString()}</div></div>
@@ -1022,33 +1283,124 @@ function exportExcel(){
   buildExcel(sel,`Endurance_Test_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
+function styleHeader(ws, colCount){
+  for(let C=0;C<colCount;C++){
+    const cell=ws[XLSX.utils.encode_cell({r:0,c:C})];
+    if(cell)cell.s={fill:{patternType:'solid',fgColor:{rgb:'1E3A5F'}},font:{bold:true,color:{rgb:'FFFFFF'},sz:9},alignment:{horizontal:'center',vertical:'center',wrapText:true}};
+  }
+}
+
 function buildExcel(rows,fname){
   const wb=XLSX.utils.book_new();
+  const now=new Date();
+
+  // ---- Sort all rows by start date ASC ----
+  const allSorted=[...rows].sort((a,b)=>{
+    return new Date(`${a.startdate}T${pad(a.startH||0)}:${pad(a.startM||0)}:00`)-
+           new Date(`${b.startdate}T${pad(b.startH||0)}:${pad(b.startM||0)}:00`);
+  });
+
+  // ---- Sheet per Machine (original format) ----
   const machines=[...new Set(rows.map(j=>j.machine))].sort();
   machines.forEach(m=>{
-    const mr=rows.filter(j=>j.machine===m);
-    const hdr=['NO.','Customer Part No.','PCS','Lot No.','L1','L2','Stroke','Load max (N)','Status','Machine Speed\n(cycle/min)','Total Cycle','start date','Start Time Hour','Start Time Minutes','Total Days\n(decimal)','Days','Hours','Minutes','Result (Days Hours Minutes)','Finish Date','Remaining Cycles','Countdown Time','Judgment'];
+    const mr=allSorted.filter(j=>j.machine===m);
+    const hdr=['NO.','Customer Part No.','PCS','Lot No.','L1','L2','Stroke','Load max (N)','Status','Machine Speed\n(cycle/min)','Total Cycle','start date','Start Time Hour','Start Time Minutes','Total Days\n(decimal)','Days','Hours','Minutes','Result (Days Hours Minutes)','Finish Date','Remaining Cycles','Countdown Time','Judgment','Total Downtime\n(min)','Pause Count','Cycle Adjustments'];
     const data=[hdr];
     mr.forEach(j=>{
-      const fin2=finishDt(j),dd=dhm(j),now=new Date();
+      const fin2=finishDt(j),dd=dhm(j);
       const finStr=fin2?fmtDateUS(fin2)+' '+fin2.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
       const elC=j.startdate?Math.round((j.speed||500)*Math.max(0,(now-startDt(j))/60000)):0;
       const rem=j.status==='Finished'?0:Math.max(0,(j.cycles||0)-elC);
-      data.push([j.no,j.partno,j.pcs,j.lotno,j.l1+' mm.',j.l2+' mm.',j.stroke+' mm.',j.load+' N',j.status==='Finished'||j.status==='Run'?'Run finished':j.status,j.speed,j.cycles,j.startdate,j.startH,j.startM,parseFloat(dd.total.toFixed(3)),dd.d,dd.h,dd.m,`${dd.d} Days ${dd.h} Hours ${dd.m} Minutes`,finStr,rem,j.status==='Finished'?'Finished':'',j.status==='Finished'?'Finished':'']);
+      const pauseCount=(j.downtimeLog||[]).length;
+      const adjCount=(j.adjustLog||[]).length;
+      const totalDT=parseFloat((j.totalDowntimeMins||0).toFixed(1));
+      data.push([j.no,j.partno,j.pcs,j.lotno,
+        j.l1+' mm.',j.l2+' mm.',j.stroke+' mm.',j.load+' N',
+        j.status==='Finished'||j.status==='Run'?'Run finished':j.status,
+        j.speed,j.cycles,j.startdate,j.startH,j.startM,
+        parseFloat(dd.total.toFixed(3)),dd.d,dd.h,dd.m,
+        `${dd.d} Days ${dd.h} Hours ${dd.m} Minutes`,
+        finStr,rem,
+        j.status==='Finished'?'Finished':'',
+        j.status==='Finished'?'Finished':'',
+        totalDT,pauseCount,adjCount
+      ]);
     });
     const ws=XLSX.utils.aoa_to_sheet(data);
-    ws['!cols']=[6,20,6,18,12,12,10,14,16,14,14,14,8,8,14,8,8,8,26,26,16,16,12].map(w=>({wch:w}));
+    ws['!cols']=[6,20,6,18,12,12,10,14,16,14,14,14,8,8,14,8,8,8,26,26,16,16,12,14,10,14].map(w=>({wch:w}));
     ws['!rows']=[{hpt:36}];
-    const rng=XLSX.utils.decode_range(ws['!ref']);
-    for(let C=rng.s.c;C<=rng.e.c;C++){const cell=ws[XLSX.utils.encode_cell({r:0,c:C})];if(cell)cell.s={fill:{patternType:'solid',fgColor:{rgb:'1E3A5F'}},font:{bold:true,color:{rgb:'FFFFFF'},sz:9},alignment:{horizontal:'center',vertical:'center',wrapText:true}};}
+    styleHeader(ws,hdr.length);
     XLSX.utils.book_append_sheet(wb,ws,`Machine No.${m}`);
   });
-  const sum=[['Endurance Test Export'],['Generated:',new Date().toLocaleString()],['Total:',rows.length],[''],['Machine','Customer','Part No.','Lot No.','Cycles','Start','Finish','Duration','Status']];
-  rows.forEach(j=>{const fin2=finishDt(j),dd=dhm(j);sum.push([`M${j.machine}`,j.customer,j.partno,j.lotno,j.cycles,j.startdate,fin2?fmtDateUS(fin2):'',`${dd.d}d ${dd.h}h ${dd.m}m`,j.status]);});
-  const wss=XLSX.utils.aoa_to_sheet(sum);wss['!cols']=[10,12,20,18,14,14,14,16,12].map(w=>({wch:w}));
+
+  // ---- Summary Sheet ----
+  const sum=[
+    ['Endurance Test — Export Report'],
+    ['Generated:',now.toLocaleString()],
+    ['Total Jobs:',rows.length],
+    [''],
+    ['Machine','#','Customer','Part No.','Lot No.','Cycles','Start Date','Finish Date','Duration','Status','Total Downtime (min)','Pause Count','Adj Count']
+  ];
+  allSorted.forEach(j=>{
+    const fin2=finishDt(j),dd=dhm(j);
+    sum.push([
+      `M${j.machine}`,j.no,j.customer,j.partno,j.lotno,j.cycles,
+      j.startdate,fin2?fmtDateUS(fin2):'',
+      `${dd.d}d ${dd.h}h ${dd.m}m`,j.status,
+      parseFloat((j.totalDowntimeMins||0).toFixed(1)),
+      (j.downtimeLog||[]).length,
+      (j.adjustLog||[]).length
+    ]);
+  });
+  const wss=XLSX.utils.aoa_to_sheet(sum);
+  wss['!cols']=[10,6,14,20,18,14,14,20,14,12,16,10,10].map(w=>({wch:w}));
+  styleHeader(wss,13);
   XLSX.utils.book_append_sheet(wb,wss,'Summary');
+
+  // ---- Downtime Log Sheet ----
+  const hasDowntime=allSorted.some(j=>(j.downtimeLog||[]).length>0);
+  if(hasDowntime){
+    const dtHdr=['Machine','#','Customer','Part No.','Lot No.','Event #','Pause Time','Resume Time','Duration (min)','Reason','Note'];
+    const dtData=[dtHdr];
+    allSorted.forEach(j=>{
+      const dtLog=j.downtimeLog||[];
+      dtLog.forEach((e,i)=>{
+        const pauseTime=e.pausedAt?new Date(e.pausedAt).toLocaleString('en-GB'):'—';
+        const resumeTime=e.resumedAt?new Date(e.resumedAt).toLocaleString('en-GB'):'Still Paused';
+        const dur=e.durationMins?parseFloat(e.durationMins.toFixed(1)):(e.resumedAt?parseFloat(((e.resumedAt-e.pausedAt)/60000).toFixed(1)):'—');
+        dtData.push([`M${j.machine}`,j.no,j.customer,j.partno,j.lotno,i+1,pauseTime,resumeTime,dur,e.reason||'—',e.note||'']);
+      });
+    });
+    const wsDT=XLSX.utils.aoa_to_sheet(dtData);
+    wsDT['!cols']=[10,6,14,20,18,8,20,20,14,20,20].map(w=>({wch:w}));
+    styleHeader(wsDT,dtHdr.length);
+    XLSX.utils.book_append_sheet(wb,wsDT,'Downtime Log');
+  }
+
+  // ---- Cycle Adjustment Log Sheet ----
+  const hasAdj=allSorted.some(j=>(j.adjustLog||[]).length>0);
+  if(hasAdj){
+    const adjHdr=['Machine','#','Customer','Part No.','Lot No.','Adj #','Adjusted At','Old Cycles','New Cycles','Difference','Note'];
+    const adjData=[adjHdr];
+    allSorted.forEach(j=>{
+      const adjLog=j.adjustLog||[];
+      adjLog.forEach((e,i)=>{
+        const adjTime=e.at?new Date(e.at).toLocaleString('en-GB'):'—';
+        const diff=e.diff>=0?`+${e.diff.toLocaleString()}`:`${e.diff.toLocaleString()}`;
+        adjData.push([`M${j.machine}`,j.no,j.customer,j.partno,j.lotno,i+1,adjTime,(e.oldCycles||0).toLocaleString(),(e.newCycles||0).toLocaleString(),diff,e.note||'']);
+      });
+    });
+    const wsAdj=XLSX.utils.aoa_to_sheet(adjData);
+    wsAdj['!cols']=[10,6,14,20,18,8,20,14,14,14,24].map(w=>({wch:w}));
+    styleHeader(wsAdj,adjHdr.length);
+    XLSX.utils.book_append_sheet(wb,wsAdj,'Cycle Adjustment Log');
+  }
+
   XLSX.writeFile(wb,fname);
-  toast(`Downloaded: ${fname}`,'ok');
+  const extras=[];
+  if(hasDowntime)extras.push('Downtime Log');
+  if(hasAdj)extras.push('Cycle Adj Log');
+  toast(`Downloaded: ${fname}${extras.length?' + '+extras.join(', '):''}`, 'ok');
 }
 
 // =============================================
