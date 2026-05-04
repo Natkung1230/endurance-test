@@ -753,14 +753,17 @@ function dhm(j){
 function fmtDT(d){if(!d)return'—';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
 function fmtDateUS(d){return d?d.toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'}):'—';}
 function effectiveStatus(j){
-  if(j.status==='Stop'||j.status==='Finished') return j.status;
+  if(j.status==='Stop') return 'Stop';
+  if(j.status==='Finished') return 'Finished';
   if(!j.startdate) return j.status;
+  // Use pause-aware finish if available
+  const fin2=typeof calcFinishWithPause==='function'&&(j.adjustedStartMs||j.totalDowntimeMins)?calcFinishWithPause(j):finishDt(j);
   const now=new Date().getTime();
   const sMs=startDt(j).getTime();
-  const fin2=finishDt(j);
   const fMs=fin2?fin2.getTime():null;
   if(fMs&&now>=fMs) return 'Finished';
-  if(sMs<=now) return 'Run';
+  if(sMs<=now&&!j.paused) return 'Run';
+  if(sMs<=now&&j.paused) return 'Run'; // paused is still Run status
   return 'Plan';
 }
 function sBadge(s){const c={Run:'b-run',Finished:'b-done',Plan:'b-plan',Stop:'b-stop'};return`<span class="badge ${c[s]||'b-plan'}">${s}</span>`;}
@@ -786,29 +789,44 @@ setInterval(()=>{
   const jobs=window._jobs||[];
   const now=new Date();
 
-  // Auto-promote Plan → Run when start time reached
-  jobs.filter(j=>j.status==='Plan'&&j.startdate).forEach(j=>{
-    const startMs=new Date(`${j.startdate}T${pad(j.startH||0)}:${pad(j.startM||0)}:00`).getTime();
-    if(now.getTime()>=startMs){
-      const fin2=finishDt(j);
-      const newStatus=fin2&&now>=fin2?'Finished':'Run';
-      const {doc,updateDoc}=window._fns||{};
-      if(doc&&updateDoc&&window._db){
-        updateDoc(doc(window._db,'jobs',j._id),{status:newStatus}).catch(()=>{});
-      }
-    }
-  });
+  // Auto-promote only if user is logged in and approved (not guest)
+  const canWrite = !window._isGuest && window._currentUser && window._db && window._fns;
 
-  // Auto-promote Run → Finished when finish time reached (uses pause-aware finish)
-  jobs.filter(j=>j.status==='Run'&&!j.paused).forEach(j=>{
-    const fin2=typeof calcFinishWithPause==='function'?calcFinishWithPause(j):finishDt(j);
-    if(fin2&&now>=fin2){
-      const {doc,updateDoc}=window._fns||{};
-      if(doc&&updateDoc&&window._db){
-        updateDoc(doc(window._db,'jobs',j._id),{status:'Finished'}).catch(()=>{});
+  if(canWrite){
+    // Auto-promote Plan → Run when start time reached
+    jobs.filter(j=>j.status==='Plan'&&j.startdate).forEach(j=>{
+      const startMs=new Date(`${j.startdate}T${pad(j.startH||0)}:${pad(j.startM||0)}:00`).getTime();
+      if(now.getTime()>=startMs){
+        const fin2=finishDt(j);
+        const newStatus=fin2&&now>=fin2?'Finished':'Run';
+        const key=`promote-${j._id}-${newStatus}`;
+        if(!window._promoteLock)window._promoteLock=new Set();
+        if(!window._promoteLock.has(key)){
+          window._promoteLock.add(key);
+          const {doc,updateDoc}=window._fns;
+          updateDoc(doc(window._db,'jobs',j._id),{status:newStatus})
+            .then(()=>window._promoteLock.delete(key))
+            .catch(()=>window._promoteLock.delete(key));
+        }
       }
-    }
-  });
+    });
+
+    // Auto-promote Run → Finished when finish time reached
+    jobs.filter(j=>j.status==='Run'&&!j.paused).forEach(j=>{
+      const fin2=typeof calcFinishWithPause==='function'?calcFinishWithPause(j):finishDt(j);
+      if(fin2&&now>=fin2){
+        const key=`finish-${j._id}`;
+        if(!window._promoteLock)window._promoteLock=new Set();
+        if(!window._promoteLock.has(key)){
+          window._promoteLock.add(key);
+          const {doc,updateDoc}=window._fns;
+          updateDoc(doc(window._db,'jobs',j._id),{status:'Finished'})
+            .then(()=>{ window._promoteLock.delete(key); toast(`✓ Job #${j.no} ${j.customer}/${j.lotno} — Finished`,'ok'); })
+            .catch(()=>window._promoteLock.delete(key));
+        }
+      }
+    });
+  }
 
   const running=jobs.filter(j=>j.status==='Run');
   running.forEach(j=>{
