@@ -976,8 +976,9 @@ function renderDashboard(){
   });
 
   document.getElementById('dash-running').innerHTML=runSorted.length?`<div style="max-height:260px;overflow-y:auto;padding-right:4px">`+runSorted.map(j=>{
-    const fin2=finishDt(j);
-    const elMins=Math.max(0,(now2-startDt(j))/60000),tm=j.cycles/(j.speed||500),pct=Math.min(100,Math.round(elMins/tm*100));
+    const fin2=typeof calcFinishWithPause==='function'?calcFinishWithPause(j):finishDt(j);
+    const elMins=typeof calcElapsedMins==='function'?calcElapsedMins(j):Math.max(0,(now2-startDt(j))/60000);
+    const tm=j.cycles/(j.speed||500),pct=Math.min(100,Math.round(elMins/tm*100));
     const elCycles=Math.min(j.cycles,Math.round(elMins*(j.speed||500)));
     const rem=fin2?Math.max(0,(fin2-now2)/60000):0;
     const rd=Math.floor(rem/1440),rh=Math.floor((rem%1440)/60),rm2=Math.round(rem%60);
@@ -987,13 +988,14 @@ function renderDashboard(){
         <span style="font-size:12px;font-weight:500">#${j.no} ${j.customer} — ${j.lotno}</span>
         <span style="font-size:10px;color:var(--text3)">M${j.machine}</span>
       </div>
-      <div class="prog-bg" style="margin-bottom:3px"><div class="prog-fill" id="${cid}-bar" style="width:${pct}%;background:var(--green)"></div></div>
+      <div style="font-size:10px;color:var(--text2);margin-bottom:3px;font-family:var(--mono)">${j.partno||'—'}</div>
+      <div class="prog-bg" style="margin-bottom:3px"><div class="prog-fill" id="${cid}-bar" style="width:${pct}%;background:${j.paused?'var(--amber)':'var(--green)'}"></div></div>
       <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:2px">
         <span id="${cid}-cyc">${elCycles.toLocaleString()} / ${j.cycles.toLocaleString()} cycles (${pct}%)</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:10px;">
         <span style="color:var(--text3)">ETA: ${fmtDT(fin2)}</span>
-        <span class="countdown" id="${cid}-rem">${rd}d ${rh}h ${rm2}m</span>
+        <span class="countdown" id="${cid}-rem" style="color:${j.paused?'var(--amber)':'var(--teal)'}">${j.paused?'PAUSED':`${rd}d ${rh}h ${rm2}m`}</span>
       </div>
     </div>`;}).join('')+`</div>`:'<div class="empty">No active jobs</div>';
   // Sort planned: by startdate ASC (soonest first), group by machine
@@ -1562,7 +1564,9 @@ function buildExcel(rows,fname){
     const mr=allSorted.filter(j=>j.machine===m);
     const hdr=['NO.','Customer Part No.','PCS','Lot No.','L1','L2','Stroke','Load max (N)','Status','Machine Speed\n(cycle/min)','Total Cycle','start date','Start Time Hour','Start Time Minutes','Total Days\n(decimal)','Days','Hours','Minutes','Result (Days Hours Minutes)','Finish Date','Remaining Cycles','Countdown Time','Judgment','Total Downtime\n(min)','Pause Count','Cycle Adjustments'];
     const data=[hdr];
+    let rowNum=0;
     mr.forEach(j=>{
+      rowNum++;
       const fin2=finishDt(j),dd=dhm(j);
       const finStr=fin2?fmtDateUS(fin2)+' '+fin2.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
       const elC=j.startdate?Math.round((j.speed||500)*Math.max(0,(now-startDt(j))/60000)):0;
@@ -1570,7 +1574,7 @@ function buildExcel(rows,fname){
       const pauseCount=(j.downtimeLog||[]).length;
       const adjCount=(j.adjustLog||[]).length;
       const totalDT=parseFloat((j.totalDowntimeMins||0).toFixed(1));
-      data.push([j.no,j.partno,j.pcs,j.lotno,
+      data.push([rowNum,j.partno,j.pcs,j.lotno,
         j.l1+' mm.',j.l2+' mm.',j.stroke+' mm.',j.load+' N',
         j.status==='Finished'||j.status==='Run'?'Run finished':j.status,
         j.speed,j.cycles,j.startdate,j.startH,j.startM,
