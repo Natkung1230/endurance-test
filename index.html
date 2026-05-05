@@ -203,7 +203,7 @@ body{font-family:'IBM Plex Sans Thai',sans-serif;background:var(--bg);color:var(
 .mc-val{font-size:22px;font-weight:500;font-family:var(--mono)}
 .mc-val.green{color:var(--green)}.mc-val.amber{color:var(--amber)}.mc-val.blue{color:var(--accent)}.mc-val.teal{color:var(--teal)}.mc-val.red{color:var(--red)}
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1rem}
-.card-title{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.card-title{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;padding-bottom:8px;border-bottom:1px solid var(--border);font-style:normal}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 .g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px}
@@ -243,14 +243,18 @@ tr:last-child td{border-bottom:none}
 .b-stop{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
 .prog-bg{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;width:100%}
 .prog-fill{height:100%;border-radius:3px;transition:width .4s}
-.job-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;position:relative;overflow:hidden}
-.job-card.running{border-color:rgba(34,197,94,.4)}
-.job-card.running::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--green);animation:blink 2s infinite}
-.job-card.planned{border-color:rgba(245,158,11,.3)}
-.job-card.planned::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--amber)}
-.jno{font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:3px}
-.jname{font-size:13px;font-weight:500;margin-bottom:7px}
-.jmeta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:7px}
+.job-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.25rem;position:relative;overflow:hidden;transition:box-shadow .15s}
+.job-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.job-card.running{border-color:rgba(34,197,94,.5);background:linear-gradient(135deg,var(--bg2) 80%,rgba(34,197,94,.04))}
+.job-card.running::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--green),var(--teal));animation:blink 2s infinite}
+.job-card.planned{border-color:rgba(245,158,11,.35);background:linear-gradient(135deg,var(--bg2) 80%,rgba(245,158,11,.04))}
+.job-card.planned::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--amber)}
+.jno{font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.jname{font-size:14px;font-weight:600;margin-bottom:6px;color:var(--text)}
+.jmeta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.jm{font-size:11px;color:var(--text3);background:var(--bg3);padding:2px 7px;border-radius:6px}
+.jm span{color:var(--text2);font-weight:500}
+.jig-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(20,184,166,.12);color:var(--teal);border:1px solid rgba(20,184,166,.3);font-family:var(--mono);margin-bottom:6px}
 .jm{font-size:11px;color:var(--text3)}.jm span{color:var(--text2);font-family:var(--mono)}
 .countdown{font-family:var(--mono);font-size:11px;color:var(--teal)}
 .month-hdr{padding:8px 0 5px;font-size:11px;font-weight:500;color:var(--accent);letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--border);margin-bottom:4px;margin-top:14px}
@@ -274,6 +278,11 @@ tr:last-child td{border-bottom:none}
 .chip{display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;background:var(--bg3);color:var(--text2);font-family:var(--mono)}
 .sel-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-bottom:1px solid var(--border);margin-bottom:4px;flex-wrap:wrap;gap:6px}
 .empty{text-align:center;padding:2rem 1rem;color:var(--text3);font-size:13px}
+.jig-result{border-radius:10px;padding:1rem 1.25rem;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.jig-ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3)}
+.jig-warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3)}
+.jig-err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3)}
+.calc-box{background:var(--bg3);border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px}
 /* Login Screen */
 .login-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
 .login-box{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:2rem;width:90%;max-width:420px}
@@ -371,6 +380,7 @@ tr:last-child td{border-bottom:none}
     <button class="nav-tab" onclick="gotoPage('history')">History</button>
     <button class="nav-tab" onclick="gotoPage('export')">Export Excel</button>
     <button class="nav-tab" onclick="gotoPage('settings')">⚙ Notify</button>
+    <button class="nav-tab" onclick="gotoPage('jig')">🔧 Jig Calc</button>
     <button class="nav-tab" id="admin-tab" style="display:none" onclick="gotoPage('admin')">👤 Admin<span class="admin-badge" id="pending-count-badge"></span></button>
   </div>
   <div class="nav-right" style="text-align:right">
@@ -406,6 +416,14 @@ tr:last-child td{border-bottom:none}
     <div class="card"><p class="card-title">Planned Jobs</p><div id="dash-planned"></div></div>
   </div>
   <div class="card"><p class="card-title">Summary by Customer</p><div id="dash-customer"></div></div>
+  <div style="background:linear-gradient(135deg,var(--bg2),rgba(20,184,166,.05));border:1px solid rgba(20,184,166,.2);border-radius:14px;padding:1.2rem 1.5rem;margin-top:12px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span style="font-size:16px">🔧</span>
+      <span style="font-size:11px;font-weight:600;color:var(--teal);text-transform:uppercase;letter-spacing:.1em">Jig Status Monitor</span>
+      <span style="font-size:10px;color:var(--text3);background:var(--bg3);padding:2px 8px;border-radius:20px" id="dash-jig-count"></span>
+    </div>
+    <div id="dash-jig-inventory"><div class="empty" style="font-size:12px">ยังไม่มี Jig ลงทะเบียน</div></div>
+  </div>
 </div>
 
 <!-- NEW JOB -->
@@ -434,11 +452,26 @@ tr:last-child td{border-bottom:none}
       <div class="fl"><label>Stroke (mm)</label><input type="number" id="f-stroke" step="0.01" placeholder="auto" readonly class="ro"></div>
       <div class="fl"><label>F Max (N)</label><input type="number" id="f-springrate" step="0.01" placeholder="F Max (N)" oninput="autoCalc()"></div>
     </div>
-    <div class="form-grid g4">
+    <div class="form-grid g4" style="margin-bottom:11px">
       <div class="fl"><label>Load Max (N)</label><input type="number" id="f-load" step="0.01" readonly class="ro-amber" placeholder="auto"></div>
       <div class="fl"><label>Machine Speed (cycle/min)</label><input type="number" id="f-speed" value="500" min="1" oninput="autoCalc()" placeholder="Machine Speed"></div>
       <div class="fl"><label>Total Target Cycles</label><input type="number" id="f-cycles" placeholder="Total Target Cycles" min="1" oninput="autoCalc()"></div>
       <div class="fl"><label>Estimated Duration</label><input type="text" id="f-duration" readonly class="ro-amber" placeholder="auto"></div>
+    </div>
+    <!-- Jig Selection -->
+    <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:2px">
+      <p style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">🔧 Jig Selection</p>
+      <div class="form-grid g3">
+        <div class="fl"><label>Inside Coil Diameter (mm)</label><input type="number" id="f-inside" step="0.01" placeholder="Inside Coil (mm)" oninput="autoCalc()"></div>
+        <div class="fl"><label>Clearance (mm)</label><input type="number" id="f-clearance" step="0.01" value="0.2" oninput="autoCalc()"></div>
+        <div class="fl">
+          <label>Jig ที่แนะนำ</label>
+          <select id="f-jig-result" class="ro" style="color:var(--green)">
+            <option value="">กรอก Inside Coil เพื่อดูผล</option>
+          </select>
+        </div>
+      </div>
+      <div id="f-jig-clash" style="display:none;margin-top:8px;padding:7px 12px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;font-size:11px;color:var(--amber)"></div>
     </div>
   </div>
   <div class="card">
@@ -581,6 +614,60 @@ tr:last-child td{border-bottom:none}
     <div class="fl" style="margin-bottom:11px"><label>Note</label><input type="text" id="e-note"></div>
     <input type="hidden" id="e-fid">
     <div class="btn-row"><button class="btn btn-primary" onclick="saveEdit()">Save Changes</button><button class="btn btn-ghost" onclick="closeModal('modal-edit')">Cancel</button></div>
+  </div>
+</div>
+
+<!-- JIG CALC PAGE -->
+<div class="page" id="page-jig">
+  <div class="sec-hdr">
+    <div><p class="sec-title">🔧 Jig Management</p><p class="sec-sub">ลงทะเบียน Jig และคำนวณหา Jig ที่เหมาะสม</p></div>
+  </div>
+  <div class="g2">
+    <!-- LEFT: Registration -->
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <p class="card-title">ลงทะเบียน Jig ใหม่</p>
+        <div class="form-grid g2" style="margin-bottom:10px">
+          <div class="fl"><label>Jig Part Name / ID</label><input type="text" id="nj-name" placeholder="เช่น JIG-A10"></div>
+          <div class="fl"><label>Jig Diameter (mm)</label><input type="number" id="nj-dia" step="0.01" placeholder="เช่น 10.00"></div>
+        </div>
+        <div class="form-grid g2" style="margin-bottom:10px">
+          <div class="fl"><label>Height / ความยาวยื่น (mm)</label><input type="number" id="nj-height" step="0.01" placeholder="เช่น 25.00"></div>
+          <div class="fl"><label>Unit PCS (จำนวนที่มี)</label><input type="number" id="nj-pcs" min="1" placeholder="เช่น 5"></div>
+        </div>
+        <div class="fl" style="margin-bottom:10px"><label>หมายเหตุ</label><input type="text" id="nj-note" placeholder="optional"></div>
+        <button class="btn btn-primary btn-sm" id="jig-save-btn" onclick="addJig()">+ Register Jig</button>
+      </div>
+      <div class="card">
+        <p class="card-title" style="font-style:normal">Jig Database <span style="font-weight:400;color:var(--text3);font-style:normal" id="jig-count"></span></p>
+        <div style="display:grid;grid-template-columns:140px 80px 90px 70px 1fr 110px;gap:8px;padding:8px 8px;font-size:10px;color:var(--text3);font-weight:500;text-transform:uppercase;border-bottom:1px solid var(--border)">
+          <span>Name</span><span>Dia (mm)</span><span>Height (mm)</span><span>PCS</span><span>Status</span><span></span>
+        </div>
+        <div id="jig-list"></div>
+      </div>
+    </div>
+    <!-- RIGHT: Calculator -->
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <p class="card-title">คำนวณหา Jig</p>
+        <div class="form-grid g2" style="margin-bottom:10px">
+          <div class="fl"><label>Inside Coil Diameter (mm)</label><input type="number" id="j-inside" step="0.01" placeholder="Inside Coil (mm)" oninput="calcJigPage()"></div>
+          <div class="fl"><label>Stroke (mm)</label><input type="number" id="j-stroke" step="0.01" placeholder="Stroke (mm)" oninput="calcJigPage()"></div>
+        </div>
+        <div class="fl" style="margin-bottom:10px">
+          <label>Clearance (mm) — default 0.2</label>
+          <input type="number" id="j-clearance" step="0.01" value="0.2" oninput="calcJigPage()">
+        </div>
+      </div>
+      <div class="card">
+        <p class="card-title">ผลการคำนวณ</p>
+        <div id="jig-calc-result"><div class="empty">กรอกข้อมูลด้านซ้ายเพื่อดูผล</div></div>
+      </div>
+      <div class="card" id="jig-clash-card" style="display:none;margin-top:12px">
+        <p class="card-title">⚠ Clash Analysis — Height × 2 vs Stroke</p>
+        <div id="jig-clash-detail"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -863,7 +950,7 @@ function gotoPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  const map={dashboard:0,input:1,running:2,history:3,export:4,settings:5,admin:6};
+  const map={dashboard:0,input:1,running:2,history:3,export:4,settings:5,jig:6,admin:7};
   document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
   if(id==='dashboard')renderDashboard();
   if(id==='running')renderRunning();
@@ -887,6 +974,7 @@ function autoCalc(){
   }
   const sh=parseInt(document.getElementById('f-startH').value)||0;
   const sm=parseInt(document.getElementById('f-startM').value)||0;
+  // Compute stroke first
   if(l1&&l2)document.getElementById('f-stroke').value=(l1-l2).toFixed(2);
   if(sr&&pcs)document.getElementById('f-load').value=calcLoad(l1,l2,sr,pcs);
   if(speed&&cycles){
@@ -912,6 +1000,8 @@ function autoCalc(){
       document.getElementById('f-status-display').style.color=colors[autoStatus]||'var(--teal)';
     }
   }
+  // Jig calc - runs after stroke is computed
+  calcJigInline();
 }
 function eCalc(){
   const l1=parseFloat(document.getElementById('e-l1').value)||0;
@@ -933,7 +1023,7 @@ async function saveJob(){
   document.getElementById('f-no').value=autoNo;
   const job={machine:g('f-machine'),no:autoNo,customer:g('f-customer'),partno:g('f-partno'),pcs,lotno:g('f-lotno'),
     l1,l2,stroke:parseFloat((l1-l2).toFixed(2)),sr,load:sr?calcLoad(l1,l2,sr,pcs):parseFloat(g('f-load'))||0,
-    speed:parseInt(g('f-speed'))||500,cycles:parseInt(g('f-cycles')),startdate:g('f-startdate'),
+    speed:parseInt(g('f-speed'))||500,cycles:parseInt(g('f-cycles')),startdate:g('f-startdate'),inside:parseFloat(g('f-inside'))||0,clearance:parseFloat(g('f-clearance'))||0.2,
     startH:parseInt(g('f-startH'))||0,startM:parseInt(g('f-startM'))||0,status:g('f-status'),note:g('f-note'),
     createdAt:new Date().toISOString()};
   try{
@@ -1047,6 +1137,45 @@ function renderDashboard(){
 
   const cust={};all.forEach(j=>{if(!cust[j.customer])cust[j.customer]={n:0,c:0,d:0};cust[j.customer].n++;cust[j.customer].c+=j.cycles||0;if(j.status==='Finished')cust[j.customer].d++;});
   if(typeof renderOverlapIndicator==='function')renderOverlapIndicator();
+  // Jig Inventory
+  (function(){
+    var jigInvEl=document.getElementById('dash-jig-inventory');
+    var jigCntEl=document.getElementById('dash-jig-count');
+    if(!jigInvEl)return;
+    var jigs=typeof loadJigs==='function'?loadJigs():[];
+    if(jigCntEl)jigCntEl.textContent='('+jigs.length+' jigs)';
+    if(!jigs.length){jigInvEl.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 0">ยังไม่มี Jig — ไปลงทะเบียนที่หน้า &#128295; Jig Calc</div>';return;}
+    var runningJobs=(window._jobs||[]).filter(function(job){return job.status==='Run';});
+    jigInvEl.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">'
+      +jigs.map(function(jig){
+        var using=runningJobs.filter(function(job){
+          if(!job.inside)return false;
+          var maxDia=(job.inside||0)-(job.clearance||0.2);
+          return jig.dia<=maxDia&&jig.dia>=(job.inside||0)*0.7;
+        });
+        var inUse=using.length>0;
+        var borderColor=inUse?'rgba(34,197,94,.4)':'rgba(255,255,255,.08)';
+        var dotColor=inUse?'var(--green)':'var(--text3)';
+        var card='<div style="background:var(--bg3);border:1px solid '+borderColor+';border-radius:12px;padding:12px 14px;position:relative;overflow:hidden">'
+          +(inUse?'<div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--green),var(--teal))"></div>':'')
+          +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+          +'<span style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text)">'+jig.name+'</span>'
+          +'<span style="width:8px;height:8px;border-radius:50%;background:'+dotColor+';display:inline-block'+(inUse?';box-shadow:0 0 6px var(--green)':'')+'"></span>'
+          +'</div>'
+          +'<div style="display:flex;gap:12px;margin-bottom:8px">'
+          +'<div style="font-size:11px"><span style="color:var(--text3)">&#216;</span> <span style="color:var(--teal);font-family:var(--mono)">'+jig.dia+'mm</span></div>'
+          +'<div style="font-size:11px"><span style="color:var(--text3)">H:</span> <span style="color:var(--text2)">'+(jig.height||'—')+'mm</span></div>'
+          +'<div style="font-size:11px"><span style="color:var(--text3)">PCS:</span> <span style="color:var(--text2)">'+(jig.pcs||'—')+'</span></div>'
+          +'</div>'
+          +(inUse
+            ?'<div style="font-size:10px;font-weight:500;color:var(--green);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">&#9658; IN USE</div>'
+             +using.map(function(job){return '<div style="font-size:11px;color:var(--text2)">M'+job.machine+' #'+job.no+' '+job.customer+'</div>';}).join('')
+            :'<div style="font-size:11px;color:var(--text3)">&#9711; Available</div>')
+          +(jig.note?'<div style="font-size:10px;color:var(--text3);margin-top:6px;border-top:1px solid var(--border);padding-top:6px">'+jig.note+'</div>':'')
+          +'</div>';
+        return card;
+      }).join('')+'</div>';
+  })();
   document.getElementById('dash-customer').innerHTML=`<table style="width:100%;font-size:12px"><thead><tr><th>Customer</th><th>Jobs</th><th>Finished</th><th>Total Cycles</th><th>Share</th></tr></thead><tbody>${Object.entries(cust).sort((a,b)=>b[1].c-a[1].c).map(([c,v])=>{const p=tc?Math.round(v.c/tc*100):0;return`<tr><td>${c}</td><td>${v.n}</td><td>${v.d}</td><td>${v.c.toLocaleString()}</td><td><div style="display:flex;align-items:center;gap:6px"><div class="prog-bg" style="width:90px"><div class="prog-fill" style="width:${p}%;background:var(--accent)"></div></div><span style="font-size:10px;color:var(--text3)">${p}%</span></div></td></tr>`;}).join('')}</tbody></table>`;
 }
 
@@ -1089,9 +1218,24 @@ function jobCard(j,type){
   const fid=j._id;
   const cid='cd-'+fid.replace(/[^a-z0-9]/gi,'');
   const seqLabel=j._seq?`#${j._seq}`:`#${j.no}`;
+  // Find matching Jig from database
+  const jigTag=(()=>{
+    if(typeof loadJigs!=='function')return '';
+    const jigs=loadJigs();
+    if(!jigs.length||!j.inside)return '';
+    const maxDia=(j.inside||0)-(j.clearance||0.2);
+    const match=jigs.filter(function(x){return x.dia<=maxDia&&x.dia>=(j.inside||0)*0.7;}).sort(function(a,b){return b.dia-a.dia;})[0];
+    if(!match)return '';
+    const cr=typeof checkClash==='function'?checkClash(match,j.stroke||0):{clash:false};
+    return '<span class="jig-tag">&#128295; '+match.name+' &#216;'+match.dia+'mm'+(cr.clash?' &#9888;':' &#10003;')+'</span>';
+  })();
   return`<div class="job-card ${type}">
-    <div class="jno">Machine No.${j.machine} — ${seqLabel} &nbsp;${sBadgeJ(j)}</div>
+    <div class="jno">
+      <span>Machine No.${j.machine} — ${seqLabel}</span>
+      ${sBadgeJ(j)}
+    </div>
     <div class="jname">${j.customer} / ${j.lotno}</div>
+    ${jigTag}
     <div class="jmeta">
       <div class="jm">Part: <span>${j.partno}</span></div>
       <div class="jm">Load: <span>${j.load}N</span></div>
@@ -1178,20 +1322,38 @@ function renderRunning(){
   const planGrouped={};
   planJobs.forEach(j=>{const k=monthKey(j.startdate);if(!planGrouped[k])planGrouped[k]=[];planGrouped[k].push(j);});
 
-  function renderGrouped(grouped, emptyMsg){
+  function renderGrouped(grouped, emptyMsg, allowHide){
     if(!Object.keys(grouped).length) return '<div class="empty" style="grid-column:1/-1">'+emptyMsg+'</div>';
-    return Object.entries(grouped).map(([month,rows])=>`
-      <div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-bottom:4px;margin-top:4px">
-        <span style="font-size:10px;font-weight:500;color:var(--accent);letter-spacing:.07em;text-transform:uppercase">${month}</span>
-        <span style="font-size:10px;color:var(--text3);background:var(--bg3);border-radius:20px;padding:1px 8px">${rows.length} job${rows.length>1?'s':''}</span>
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-      </div>
-      ${rows.map(j=>jobCard(j,j.status==='Run'?'running':'planned')).join('')}
-    `).join('');
+    var hidden=JSON.parse(localStorage.getItem('et_hidden_months')||'[]');
+    return Object.entries(grouped).map(function(entry){
+      var month=entry[0], rows=entry[1];
+      var key='m-'+month.replace(/\s/g,'-');
+      var isHidden=allowHide&&hidden.includes(key);
+      if(!window._planKeys)window._planKeys={};
+      var safeK='pk_'+key.replace(/[^a-zA-Z0-9]/g,'_');
+      window._planKeys[safeK]=key;
+      var hideBtn=allowHide
+        ?'<button onclick="togglePlanMonth(window._planKeys.'+safeK+')" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:2px 8px;font-size:10px;cursor:pointer;color:var(--text3);font-family:inherit">'+(isHidden?'&#9654; Show':'&#9660; Hide')+'</button>'
+        :'';
+      var cards=isHidden?'':rows.map(function(j){return jobCard(j,j.status==='Run'?'running':'planned');}).join('');
+      return '<div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-bottom:4px;margin-top:4px">'
+        +'<span style="font-size:10px;font-weight:500;color:var(--accent);letter-spacing:.07em;text-transform:uppercase">'+month+'</span>'
+        +'<span style="font-size:10px;color:var(--text3);background:var(--bg3);border-radius:20px;padding:1px 8px">'+rows.length+' job'+(rows.length>1?'s':'')+'</span>'
+        +'<div style="flex:1;height:1px;background:var(--border)"></div>'
+        +hideBtn+'</div>'+cards;
+    }).join('');
   }
 
-  runEl.innerHTML=renderGrouped(runGrouped,'No running jobs');
-  planEl.innerHTML=renderGrouped(planGrouped,'No planned jobs');
+  runEl.innerHTML=renderGrouped(runGrouped,'No running jobs',false);
+  planEl.innerHTML=renderGrouped(planGrouped,'No planned jobs',true);
+}
+
+function togglePlanMonth(key){
+  var h=JSON.parse(localStorage.getItem('et_hidden_months')||'[]');
+  var i=h.indexOf(key);
+  if(i>=0)h.splice(i,1);else h.push(key);
+  localStorage.setItem('et_hidden_months',JSON.stringify(h));
+  renderRunning();
 }
 
 async function cancelJob(fid){
@@ -1377,10 +1539,10 @@ function openDetail(fid){
       <div class="det-row"><div class="det-key">Load Max</div><div class="det-val" style="color:var(--amber)">${j.load} N</div></div>
       <div class="det-row"><div class="det-key">Machine Speed</div><div class="det-val">${j.speed} cycle/min</div></div>
       <div class="det-row"><div class="det-key">Total Target Cycles</div><div class="det-val">${j.cycles.toLocaleString()}</div></div>
-      <div class="det-sec">Schedule & Progress</div>
-      <div class="det-row"><div class="det-key">Start</div><div class="det-val">${j.startdate} ${j.startH}:${pad(j.startM)}</div></div>
-      <div class="det-row"><div class="det-key">Estimated Finish</div><div class="det-val" style="color:var(--teal)">${fmtDT(fin2)}</div></div>
-      <div class="det-row"><div class="det-key">Duration</div><div class="det-val">${dd.d}d ${dd.h}h ${dd.m}m (${dd.total.toFixed(3)} days)</div></div>
+      <div class="det-sec">Schedule &amp; Progress</div>
+      <div class="det-row"><div class="det-key">Start</div><div class="det-val" style="font-family:var(--mono)">${j.startdate} &nbsp; ${j.startH}:${pad(j.startM)}</div></div>
+      <div class="det-row"><div class="det-key">Estimated Finish</div><div class="det-val" style="color:var(--teal);font-family:var(--mono)">${fmtDT(fin2)}</div></div>
+      <div class="det-row"><div class="det-key">Duration</div><div class="det-val"><span style="font-family:var(--mono)">${dd.d}d ${dd.h}h ${dd.m}m</span> <span style="color:var(--text3);font-size:11px">(${dd.total.toFixed(3)} days)</span></div></div>
       ${(j.downtimeLog&&j.downtimeLog.length)?`
       <div class="det-sec">Downtime Log (${j.downtimeLog.length} events | รวม: ${Math.floor((j.totalDowntimeMins||0)/60)}h ${Math.round((j.totalDowntimeMins||0)%60)}m)</div>
       ${j.downtimeLog.map(e=>{
@@ -1390,18 +1552,45 @@ function openDetail(fid){
       ${(j.adjustLog&&j.adjustLog.length)?`<div class="det-sec">Cycle Adjustment Log</div>${j.adjustLog.map(e=>`<div class="det-row"><div class="det-key" style="font-size:11px">${new Date(e.at).toLocaleString('en-GB')}</div><div class="det-val" style="font-size:11px">${e.diff>=0?'+':''}${e.diff.toLocaleString()} cycles${e.note?' — '+e.note:''}</div></div>`).join('')}`:''}
       `:''}
       ${j.status==='Run'?`
-      <div class="det-row"><div class="det-key">Elapsed Cycles</div><div class="det-val">${elC.toLocaleString()} / ${j.cycles.toLocaleString()} (${pct}%)</div></div>
-      <div class="det-row"><div class="det-key">Remaining Cycles</div><div class="det-val" style="color:var(--teal)">${(j.cycles-elC).toLocaleString()}</div></div>
-      <div class="det-row"><div class="det-key">Time Remaining</div><div class="det-val" style="color:var(--teal)">${rd}d ${rh}h ${rm}m</div></div>
-      <div class="det-row"><div class="det-key">Progress</div><div class="det-val">
-        <div class="prog-bg" style="width:180px;display:inline-block"><div class="prog-fill" style="width:${pct}%;background:var(--green)"></div></div>
-        <span style="margin-left:7px">${pct}%</span></div></div>`:''}
+      <div class="det-sec">Live Progress</div>
+      <div style="margin:10px 0 6px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:12px;color:var(--text3)">Elapsed</span>
+          <span style="font-family:var(--mono);font-size:13px;font-weight:500">${elC.toLocaleString()} <span style="color:var(--text3);font-size:11px">/ ${j.cycles.toLocaleString()} cycles</span></span>
+        </div>
+        <div style="height:10px;background:var(--bg3);border-radius:5px;overflow:hidden;margin-bottom:8px">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--green),var(--teal));border-radius:5px;transition:width .5s"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div style="background:var(--bg3);border-radius:8px;padding:8px 10px;text-align:center">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">PROGRESS</div>
+            <div style="font-size:18px;font-weight:600;color:var(--green);font-family:var(--mono)">${pct}%</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:8px;padding:8px 10px;text-align:center">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">REMAINING</div>
+            <div style="font-size:14px;font-weight:600;color:var(--teal);font-family:var(--mono)">${rd}d ${rh}h ${rm}m</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:8px;padding:8px 10px;text-align:center">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px">CYCLES LEFT</div>
+            <div style="font-size:14px;font-weight:600;color:var(--amber);font-family:var(--mono)">${(j.cycles-elC).toLocaleString()}</div>
+          </div>
+        </div>
+      </div>`:''}
     </div>`;
   document.getElementById('modal-detail').classList.add('open');
 }
 
 let hTimer=null;
 document.getElementById('hist-q').addEventListener('input',()=>{clearTimeout(hTimer);hTimer=setTimeout(renderHistory,200);});
+
+function toggleHistMth(slug){
+  var h=JSON.parse(localStorage.getItem('et_hid_mth')||'[]');
+  var i=h.indexOf(slug);if(i>=0)h.splice(i,1);else h.push(slug);
+  localStorage.setItem('et_hid_mth',JSON.stringify(h));
+  var c=document.getElementById('mrc_'+slug);
+  var t=document.getElementById('mrt_'+slug);
+  if(c){var hid=c.style.display==='none';c.style.display=hid?'block':'none';if(t)t.textContent=hid?'&#9660;':'&#9654;';}
+}
 
 function renderHistory(){
   const jobs=window._jobs||[];
@@ -1423,24 +1612,68 @@ function renderHistory(){
   Object.values(grouped).forEach(rows=>rows.sort((a,b)=>a.no-b.no));
   const el=document.getElementById('hist-container');
   if(!filtered.length){el.innerHTML='<div class="empty">No records found</div>';return;}
-  el.innerHTML=Object.entries(grouped).map(([month,rows])=>`
-    <div class="month-hdr">${month} <span style="color:var(--text3);font-weight:400">(${rows.length})</span></div>
-    <div class="tbl-wrap" style="margin-bottom:4px"><table>
-      <thead><tr><th>M</th><th>#</th><th>Customer</th><th>Part No.</th><th>PCS</th><th>Lot No.</th><th>L1</th><th>L2</th><th>Stroke</th><th>F Max</th><th>Load(N)</th><th>Speed</th><th>Cycles</th><th>Start</th><th>Finish</th><th>Duration</th><th>Status</th><th>Note</th><th>Action</th></tr></thead>
-      <tbody>${rows.map(j=>{const fin2=finishDt(j),dd=dhm(j),fid=j._id;return`<tr>
-        <td>M${j.machine}</td><td>${j.no}</td><td>${j.customer}</td><td>${j.partno}</td><td>${j.pcs}</td><td>${j.lotno}</td>
-        <td>${j.l1}</td><td>${j.l2}</td><td>${j.stroke}</td><td>${j.sr||'—'}</td><td>${j.load}</td>
-        <td>${j.speed}</td><td>${(j.cycles||0).toLocaleString()}</td><td>${j.startdate}</td>
-        <td style="font-size:11px">${fmtDT(fin2)}</td><td>${dd.d}d ${dd.h}h ${dd.m}m</td>
-        <td>${sBadgeJ(j)}</td><td style="color:var(--text3)">${j.note||''}</td>
-        <td><div style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-sm" onclick="openDetail('${fid}')">Detail</button>
-          ${!window._isGuest&&window._currentUser?`
-          <button class="btn btn-ghost btn-sm" onclick="openEdit('${fid}')">Edit</button>
-          <button class="btn btn-danger btn-sm" onclick="delJob('${fid}')">Del</button>`:''}
-        </div></td>
-      </tr>`;}).join('')}</tbody>
-    </table></div>`).join('');
+  // Group by year then month
+  const byYear={};
+  Object.entries(grouped).forEach(function(e){
+    var month=e[0],rows=e[1];
+    var yr=rows[0]&&rows[0].startdate?rows[0].startdate.slice(0,4):'Unknown';
+    if(!byYear[yr])byYear[yr]=[];
+    byYear[yr].push({month:month,rows:rows});
+  });
+  var hiddenYrs=JSON.parse(localStorage.getItem('et_hid_yr')||'[]');
+  var hiddenMths=JSON.parse(localStorage.getItem('et_hid_mth')||'[]');
+  var html='';
+  Object.keys(byYear).sort(function(a,b){return b-a;}).forEach(function(yr){
+    var yrData=byYear[yr];
+    var total=yrData.reduce(function(s,x){return s+x.rows.length;},0);
+    var yHid=hiddenYrs.includes(yr);
+    var yKey='yt_'+yr;
+    if(!window._histKeys)window._histKeys={};
+    window._histKeys[yKey]=yr;
+    html+='<div style="margin-bottom:6px">'
+      +'<div style="display:flex;align-items:center;gap:10px;padding:8px 0 6px;border-bottom:2px solid rgba(59,130,246,.4)">'
+      +'<span style="font-size:15px;font-weight:600;color:var(--accent)">'+yr+'</span>'
+      +'<span style="font-size:11px;color:var(--text3);background:var(--bg3);border-radius:20px;padding:2px 9px">'+total+' jobs</span>'
+      +'</div>'
+      +'<div>';
+    yrData.forEach(function(item){
+      var month=item.month,rows=item.rows;
+      var mslug=month.replace(/[^a-zA-Z0-9]/g,'-');
+      var mKey='mt_'+mslug;
+      window._histKeys[mKey]=mslug;
+      var mHid=hiddenMths.includes(mslug);
+      html+='<div class="month-hdr" onclick="toggleHistMth(window._histKeys.'+mKey+')" style="cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none">'
+        +'<span>'+month+' <span style="color:var(--text3);font-weight:400">('+rows.length+')</span></span>'
+        +'<div style="flex:1;height:1px;background:var(--border);margin:0 6px"></div>'
+        +'<span style="font-size:10px;color:var(--text3)" id="mrt_'+mslug+'">'+(mHid?'&#9654;':'&#9660;')+'</span>'
+        +'</div>'
+        +'<div id="mrc_'+mslug+'" style="display:'+(mHid?'none':'block')+'">'
+        +'<div class="tbl-wrap" style="margin-bottom:8px"><table>'
+        +'<thead><tr><th>M</th><th>#</th><th>Customer</th><th>Part No.</th><th>PCS</th><th>Lot No.</th><th>L1</th><th>L2</th><th>Stroke</th><th>F Max</th><th>Load(N)</th><th>Speed</th><th>Cycles</th><th>Start</th><th>Finish</th><th>Duration</th><th>Status</th><th>Note</th><th>Action</th></tr></thead>'
+        +'<tbody>';
+      rows.forEach(function(j){
+        var fin2=finishDt(j),dd=dhm(j),fid=j._id;
+        var fKey='fid_'+fid.replace(/[^a-zA-Z0-9]/g,'_');
+        window._histKeys[fKey]=fid;
+        var editBtns='';
+        if(!window._isGuest&&window._currentUser){
+          editBtns='<button class="btn btn-ghost btn-sm" onclick="openEdit(window._histKeys.'+fKey+')">Edit</button>'
+            +'<button class="btn btn-danger btn-sm" onclick="delJob(window._histKeys.'+fKey+')">Del</button>';
+        }
+        html+='<tr>'
+          +'<td>M'+j.machine+'</td><td>'+j.no+'</td><td>'+j.customer+'</td><td>'+j.partno+'</td><td>'+j.pcs+'</td><td>'+j.lotno+'</td>'
+          +'<td>'+j.l1+'</td><td>'+j.l2+'</td><td>'+j.stroke+'</td><td>'+(j.sr||'—')+'</td><td>'+j.load+'</td>'
+          +'<td>'+j.speed+'</td><td>'+((j.cycles||0).toLocaleString())+'</td><td>'+j.startdate+'</td>'
+          +'<td style="font-size:11px">'+fmtDT(fin2)+'</td><td>'+dd.d+'d '+dd.h+'h '+dd.m+'m</td>'
+          +'<td>'+sBadgeJ(j)+'</td><td style="color:var(--text3)">'+(j.note||'')+'</td>'
+          +'<td><div style="display:flex;gap:4px"><button class="btn btn-ghost btn-sm" onclick="openDetail(window._histKeys.'+fKey+')">Detail</button>'+editBtns+'</div></td>'
+          +'</tr>';
+      });
+      html+='</tbody></table></div></div>';
+    });
+    html+='</div></div>';
+  });
+  el.innerHTML=html;
 }
 
 function openEdit(fid){
@@ -1477,7 +1710,15 @@ async function delJob(fid){
 function renderExport(){
   const jobs=window._jobs||[];
   const mf=document.getElementById('exp-m').value,sf=document.getElementById('exp-s').value;
-  const visible=jobs.filter(j=>(mf==='all'||j.machine===mf)&&(sf==='all'||j.status===sf));
+  const mthEl=document.getElementById('exp-month');
+  const mth=mthEl?mthEl.value:'all';
+  // Populate month dropdown
+  if(mthEl){
+    const months=[...new Set(jobs.map(j=>j.startdate?j.startdate.slice(0,7):'').filter(Boolean))].sort().reverse();
+    const cur=mthEl.value;
+    mthEl.innerHTML='<option value="all">All Months</option>'+months.map(m=>'<option value="'+m+'"'+(m===cur?' selected':'')+'>'+m+'</option>').join('');
+  }
+  const visible=jobs.filter(j=>(mf==='all'||j.machine===mf)&&(sf==='all'||j.status===sf)&&(mth==='all'||j.startdate.slice(0,7)===mth));
   expSel=new Set([...expSel].filter(i=>visible.some(j=>j._id===i)));
   document.getElementById('exp-list').innerHTML=visible.map(j=>`
     <div class="cb-row" onclick="toggleJob('${j._id}',event)">
@@ -2179,6 +2420,272 @@ window.gotoPage = function(id){
 };
 
 // Fix nav map for admin tab
+
+// ============================================================
+// JIG CALCULATOR
+// ============================================================
+function loadJigs(){return JSON.parse(localStorage.getItem('et_jigs')||'[]');}
+function saveJigs(j){localStorage.setItem('et_jigs',JSON.stringify(j));}
+
+function addJig(){
+  var name=document.getElementById('nj-name').value.trim();
+  var dia=parseFloat(document.getElementById('nj-dia').value)||0;
+  var height=parseFloat(document.getElementById('nj-height').value)||0;
+  var pcs=parseInt(document.getElementById('nj-pcs').value)||1;
+  var note=document.getElementById('nj-note').value.trim();
+  var editIdx=parseInt(document.getElementById('jig-save-btn').getAttribute('data-edit-idx'));
+  if(!name||!dia){toast('กรอกชื่อและขนาด Jig','err');return;}
+  var jigs=loadJigs();
+  var obj={name:name,dia:dia,height:height,pcs:pcs,note:note};
+  if(!isNaN(editIdx)&&editIdx>=0){
+    jigs[editIdx]=obj;
+    document.getElementById('jig-save-btn').textContent='+ Register Jig';
+    document.getElementById('jig-save-btn').removeAttribute('data-edit-idx');
+  } else {
+    jigs.push(obj);
+  }
+  jigs.sort(function(a,b){return a.dia-b.dia;});
+  saveJigs(jigs);
+  // Reset edit mode
+  var saveBtn=document.getElementById('jig-save-btn');
+  if(saveBtn){saveBtn.textContent='+ Register Jig';saveBtn.removeAttribute('data-edit-idx');}
+  ['nj-name','nj-dia','nj-height','nj-pcs','nj-note'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  renderJigList();
+  calcJigPage();
+  toast('Jig saved: '+name,'ok');
+}
+
+function editJig(idx){
+  var jigs=loadJigs();
+  var j=jigs[idx];
+  if(!j){toast('ไม่พบ Jig ที่ index '+idx,'err');return;}
+  var elName=document.getElementById('nj-name');
+  var elDia=document.getElementById('nj-dia');
+  var elHt=document.getElementById('nj-height');
+  var elPcs=document.getElementById('nj-pcs');
+  var elNote=document.getElementById('nj-note');
+  var btn=document.getElementById('jig-save-btn');
+  if(elName)elName.value=j.name||'';
+  if(elDia)elDia.value=j.dia||'';
+  if(elHt)elHt.value=j.height||'';
+  if(elPcs)elPcs.value=j.pcs||'';
+  if(elNote)elNote.value=j.note||'';
+  if(btn){btn.textContent='&#10003; Update Jig';btn.setAttribute('data-edit-idx',idx);}
+  // Scroll to form top smoothly
+  var formEl=document.getElementById('nj-name');
+  if(formEl){formEl.scrollIntoView({behavior:'smooth',block:'center'});formEl.focus();}
+  toast('แก้ไข Jig: '+j.name,'ok');
+}
+
+function deleteJig(idx){
+  if(!confirm('ลบ Jig นี้?'))return;
+  var jigs=loadJigs();
+  jigs.splice(idx,1);
+  saveJigs(jigs);
+  renderJigList();
+  calcJigPage();
+}
+
+function renderJigList(){
+  var jigs=loadJigs();
+  var el=document.getElementById('jig-list');
+  var cnt=document.getElementById('jig-count');
+  if(cnt)cnt.textContent='('+jigs.length+' jigs)';
+  if(!el)return;
+  if(!jigs.length){el.innerHTML='<div class="empty">ยังไม่มี Jig — เพิ่มด้านบน</div>';return;}
+  el.innerHTML=jigs.map(function(j,i){
+    return '<div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr 110px;gap:6px;align-items:center;padding:8px 8px;border-bottom:1px solid var(--border)">'
+      +'<span style="font-weight:500;font-family:var(--mono);font-size:12px">'+j.name+'</span>'
+      +'<span style="color:var(--teal);font-family:var(--mono);font-size:12px">&#216;'+j.dia+'</span>'
+      +'<span style="color:var(--text2);font-size:12px">'+(j.height||'—')+'</span>'
+      +'<span style="color:var(--text2);font-size:12px">'+(j.pcs||'—')+' pcs</span>'
+      +'<div style="display:flex;gap:4px">'
+      +'<button class="btn btn-ghost btn-sm" onclick="editJig('+i+')">Edit</button>'
+      +'<button class="btn btn-danger btn-sm" onclick="deleteJig('+i+')">Del</button>'
+      +'</div>'
+      +(j.note?'<div style="grid-column:1/-1;font-size:10px;color:var(--text3);padding:0 0 4px">'+j.note+'</div>':'')
+      +'</div>';
+  }).join('');
+}
+
+function checkClash(jig,stroke){
+  var height=jig.height||0;
+  if(!stroke||!height)return{clash:false,msg:'ข้อมูลไม่ครบ',gap:999};
+  var total=height*2;
+  var gap=stroke-total;
+  var clash=gap<6;
+  var msg=gap<0?'Jig ชนกัน! H×2='+total+'mm > Stroke='+stroke+'mm':gap<6?'Gap '+gap.toFixed(1)+'mm < 6mm cap':'Gap '+gap.toFixed(1)+'mm ✓';
+  return{clash:clash,msg:msg,gap:gap,total:total};
+}
+
+function calcJigPage(){
+  var inside=parseFloat(document.getElementById('j-inside').value)||0;
+  var stroke=parseFloat(document.getElementById('j-stroke').value)||0;
+  var clearance=parseFloat(document.getElementById('j-clearance').value)||0.2;
+  var resultEl=document.getElementById('jig-calc-result');
+  var clashCard=document.getElementById('jig-clash-card');
+  var clashDetail=document.getElementById('jig-clash-detail');
+  if(!inside){if(resultEl)resultEl.innerHTML='<div class="empty">กรอก Inside Coil Diameter เพื่อดูผล</div>';return;}
+  var jigs=loadJigs();
+  var maxDia=inside-clearance;
+  var html='<div style="background:var(--bg3);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;display:flex;gap:16px;flex-wrap:wrap">'
+    +'<div><span style="color:var(--text3)">Inside Coil:</span> <span style="font-family:var(--mono)">'+inside+' mm</span></div>'
+    +'<div><span style="color:var(--text3)">Max Jig &#216;:</span> <span style="font-family:var(--mono);color:var(--teal)">&#8804; '+maxDia.toFixed(2)+' mm</span></div>'
+    +(stroke?'<div><span style="color:var(--text3)">Stroke:</span> <span style="font-family:var(--mono);color:var(--amber)">'+stroke+' mm</span></div>':'')
+    +'</div>';
+  if(!jigs.length){
+    html+='<div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:12px 14px">'
+      +'<div style="font-size:12px;color:var(--text2);margin-bottom:4px">ยังไม่มี Jig ใน Database</div>'
+      +'<div style="font-size:13px;font-weight:500">แนะนำ Jig &#216; <strong>&#8804; '+maxDia.toFixed(2)+' mm</strong></div>'
+      +'</div>';
+    if(resultEl)resultEl.innerHTML=html;
+    return;
+  }
+  var suitable=[],marginal=[],tooLarge=[];
+  jigs.forEach(function(j){
+    if(j.dia>maxDia)tooLarge.push(j);
+    else if(j.dia>=inside*0.7)suitable.push(j);
+    else marginal.push(j);
+  });
+  if(suitable.length){
+    html+='<div style="font-size:11px;font-weight:500;color:var(--green);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em">&#10003; Jig ที่แนะนำ</div>';
+    suitable.forEach(function(j){
+      var cr=checkClash(j,stroke);
+      var gap=(maxDia-j.dia).toFixed(2);
+      html+='<div class="jig-result '+(cr.clash?'jig-warn':'jig-ok')+'">'
+        +'<div><div style="font-size:14px;font-weight:500;font-family:var(--mono)">'+j.name+'</div>'
+        +'<div style="font-size:12px;color:var(--text2)">&#216;'+j.dia+' mm — Gap: <span style="color:var(--teal)">'+gap+' mm</span></div>'
+        +(j.note?'<div style="font-size:10px;color:var(--text3)">'+j.note+'</div>':'')
+        +'</div>'
+        +'<div style="text-align:right"><span style="font-size:11px;padding:3px 10px;border-radius:20px;font-family:var(--mono);'+(cr.clash?'background:rgba(245,158,11,.2);color:var(--amber)':'background:rgba(34,197,94,.2);color:var(--green)')+'">'+(cr.clash?'&#9888; Check Clash':'&#10003; OK')+'</span>'
+        +(stroke&&cr.clash?'<div style="font-size:10px;color:var(--amber);margin-top:4px">'+cr.msg+'</div>':'')
+        +'</div></div>';
+    });
+  }
+  if(marginal.length){
+    html+='<div style="font-size:11px;font-weight:500;color:var(--amber);margin:10px 0 6px;text-transform:uppercase;letter-spacing:.06em">&#9651; Jig ที่ใช้ได้ (อาจหลวม)</div>';
+    marginal.forEach(function(j){
+      var gap=(maxDia-j.dia).toFixed(2);
+      html+='<div class="jig-result jig-warn"><div><div style="font-size:13px;font-weight:500;font-family:var(--mono)">'+j.name+'</div><div style="font-size:12px;color:var(--text2)">&#216;'+j.dia+' mm — Gap: <span style="color:var(--amber)">'+gap+' mm</span></div></div><span style="font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(245,158,11,.15);color:var(--amber)">Marginal</span></div>';
+    });
+  }
+  if(tooLarge.length){
+    html+='<div style="font-size:11px;font-weight:500;color:var(--red);margin:10px 0 6px;text-transform:uppercase;letter-spacing:.06em">&#10005; ใหญ่เกินไป</div>';
+    tooLarge.forEach(function(j){
+      html+='<div class="jig-result jig-err"><div style="font-size:13px;font-family:var(--mono)">'+j.name+' — &#216;'+j.dia+' mm</div><span style="font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(239,68,68,.15);color:var(--red)">Too Large</span></div>';
+    });
+  }
+  if(!suitable.length&&!marginal.length){
+    html+='<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:12px 14px">'
+      +'<div style="font-size:13px;color:var(--red)">ไม่มี Jig ที่เหมาะสม</div>'
+      +'<div style="font-size:12px;color:var(--text3);margin-top:4px">ต้องการ Jig &#216; &#8804; '+maxDia.toFixed(2)+' mm</div></div>';
+  }
+  if(resultEl)resultEl.innerHTML=html||'<div class="empty">ไม่พบ Jig ที่เหมาะสม</div>';
+  // Clash detail
+  var clashJigs=suitable.filter(function(j){return stroke&&checkClash(j,stroke).clash;});
+  if(clashCard){
+    clashCard.style.display=clashJigs.length&&stroke?'block':'none';
+    if(clashDetail&&clashJigs.length&&stroke){
+      clashDetail.innerHTML=clashJigs.map(function(j){
+        var cr=checkClash(j,stroke);
+        return '<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:12px 14px;margin-bottom:8px">'
+          +'<div style="font-size:13px;font-weight:500;margin-bottom:8px">'+j.name+' (&#216;'+j.dia+'mm)</div>'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">'
+          +'<div><span style="color:var(--text3)">Height:</span> <span style="font-family:var(--mono)">'+j.height+' mm</span></div>'
+          +'<div><span style="color:var(--text3)">Height &#215; 2:</span> <span style="font-family:var(--mono);color:var(--amber)">'+cr.total+' mm</span></div>'
+          +'<div><span style="color:var(--text3)">Stroke:</span> <span style="font-family:var(--mono);color:var(--teal)">'+stroke+' mm</span></div>'
+          +'<div><span style="color:var(--text3)">Gap:</span> <span style="font-family:var(--mono);color:'+(cr.gap<0?'var(--red)':'var(--amber)')+'">'+cr.gap.toFixed(1)+' mm</span></div>'
+          +'</div>'
+          +(cr.gap<0?'<div style="margin-top:8px;padding:6px 10px;background:rgba(239,68,68,.1);border-radius:6px;font-size:11px;color:var(--red)">&#9888; Jig ชนกัน — ต้องใช้ Jig ที่เตี้ยกว่า</div>':'<div style="margin-top:8px;padding:6px 10px;background:rgba(245,158,11,.1);border-radius:6px;font-size:11px;color:var(--amber)">&#9651; Gap น้อยกว่า 6mm safety cap</div>')
+          +'</div>';
+      }).join('');
+    }
+  }
+}
+
+
+function calcJigInline(){
+  var insideEl=document.getElementById('f-inside');
+  var strokeEl=document.getElementById('f-stroke');
+  var clearEl=document.getElementById('f-clearance');
+  var selectEl=document.getElementById('f-jig-result');
+  var clashEl=document.getElementById('f-jig-clash');
+  if(!insideEl||!selectEl)return;
+  var inside=parseFloat(insideEl.value)||0;
+  var stroke=parseFloat(strokeEl?strokeEl.value:0)||0;
+  var clearance=parseFloat(clearEl?clearEl.value:0.2)||0.2;
+  if(!inside){
+    selectEl.innerHTML='<option value="">กรอก Inside Coil เพื่อดูผล</option>';
+    selectEl.style.color='var(--text3)';
+    if(clashEl)clashEl.style.display='none';
+    return;
+  }
+  var jigs=loadJigs();
+  var maxDia=inside-clearance;
+  if(!jigs.length){
+    selectEl.innerHTML='<option value="">ยังไม่มี Jig — แนะนำ Ø≤ '+maxDia.toFixed(2)+'mm</option>';
+    selectEl.style.color='var(--amber)';
+    if(clashEl)clashEl.style.display='none';
+    return;
+  }
+  var suitable=jigs.filter(function(j){return j.dia<=maxDia&&j.dia>=inside*0.7;});
+  var marginal=jigs.filter(function(j){return j.dia<=maxDia&&j.dia<inside*0.7;});
+  var allFit=suitable.concat(marginal);
+  if(!allFit.length){
+    selectEl.innerHTML='<option value="">ไม่มี Jig — ต้องการ Ø≤ '+maxDia.toFixed(2)+'mm</option>';
+    selectEl.style.color='var(--red)';
+    if(clashEl){clashEl.style.display='block';clashEl.innerHTML='⚠ ไม่มี Jig พอดี ต้องการ Ø ≤ '+maxDia.toFixed(2)+'mm';}
+    return;
+  }
+  var opts='<option value="">-- เลือก Jig --</option>';
+  var clashWarns=[];
+  if(suitable.length){
+    suitable.forEach(function(j){
+      var cr=stroke?checkClash(j,stroke):{clash:false,gap:999,msg:''};
+      var ok=!cr.clash;
+      var lbl=j.name+' Ø'+j.dia+'mm'+(j.height?' H:'+j.height+'mm':'')+' '+(ok?'✓ OK':'⚠ Gap '+cr.gap.toFixed(1)+'mm')+(j.pcs?' ['+j.pcs+'pcs]':'');
+      opts+='<option value="'+j.name+'">'+ lbl+'</option>';
+      if(!ok&&stroke)clashWarns.push(j.name+': '+cr.msg);
+    });
+  }
+  if(marginal.length){
+    opts+='<option disabled>── Marginal ──</option>';
+    marginal.forEach(function(j){
+      var cr=stroke?checkClash(j,stroke):{clash:false,gap:999,msg:''};
+      opts+='<option value="'+j.name+'">'+j.name+' Ø'+j.dia+'mm (marginal)</option>';
+    });
+  }
+  selectEl.innerHTML=opts;
+  selectEl.style.color='var(--text)';
+  var best=suitable.find(function(j){return !checkClash(j,stroke||0).clash;})||suitable[0]||marginal[0];
+  if(best)selectEl.value=best.name;
+  if(clashEl){
+    if(clashWarns.length&&stroke){
+      clashEl.style.display='block';
+      clashEl.innerHTML='⚠ Clash: '+clashWarns.join(' | ');
+    }else{clashEl.style.display='none';}
+  }
+}
+
+
+// Wire gotoPage for jig page
+var _origGotoPage3 = window.gotoPage;
+window.gotoPage = function(id){
+  if(id === 'jig'){
+    // Call original first to handle page switching
+    document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+    document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active');});
+    var pg = document.getElementById('page-jig');
+    if(pg) pg.classList.add('active');
+    document.querySelectorAll('.nav-tab').forEach(function(t){
+      if(t.getAttribute('onclick') && t.getAttribute('onclick').indexOf("'jig'") >= 0) t.classList.add('active');
+    });
+    renderJigList();
+    calcJigPage();
+    return;
+  }
+  _origGotoPage3(id);
+};
 </script>
 </body>
 </html>
