@@ -312,6 +312,27 @@ tr:last-child td{border-bottom:none}
 .recipient-row:last-child{border-bottom:none}
 .overlap-badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3);margin-left:6px;font-family:var(--mono)}
 .loading{text-align:center;padding:2rem;color:var(--text3);font-size:12px;font-family:var(--mono)}
+/* --- ส่วนที่เพิ่มใหม่: เอฟเฟกต์ไฟวิบวับ --- */
+@keyframes glow-sparkle {
+  0%, 100% { text-shadow: 0 0 5px rgba(59,130,246,0.3); filter: brightness(1); }
+  50% { text-shadow: 0 0 15px rgba(59,130,246,0.8), 0 0 25px rgba(20,184,166,0.6); filter: brightness(1.4); }
+}
+
+@keyframes gradient-move {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.logo-animate {
+  display: inline-block;
+  background: linear-gradient(90deg, #3b82f6, #14b8a6, #3b82f6);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-move 3s linear infinite, glow-sparkle 2s ease-in-out infinite;
+  font-weight: 800;
+}
 </style>
 </head>
 <body>
@@ -319,9 +340,15 @@ tr:last-child td{border-bottom:none}
 <div class="login-screen" id="login-screen">
   <div class="login-box">
     <div class="login-logo">
-      <p>ENDURANCE TEST | SYSTEM <span style="background:linear-gradient(135deg,#3b82f6,#14b8a6);-webkit-background-clip:text;-webkit-text-fill-color:transparent">by NSP</span></p>
-      <p>Sign in to access the system</p>
-    </div>
+  <p style="font-size: 18px;">
+    <span style="color: var(--text); letter-spacing: 0.1em;">ENDURANCE TEST</span>
+    <span class="logo-animate" style="margin-left: 5px;">SYSTEM</span>
+  </p>
+  <p style="font-size: 12px; margin-top: 5px;">
+    <span style="color: var(--text3)">Powering by</span> 
+    <span class="logo-animate" style="font-size: 14px;">NSP Digital</span>
+  </p>
+</div>
     <div class="login-tabs">
       <button class="login-tab active" onclick="switchLoginTab('login',this)">Sign In</button>
       <button class="login-tab" onclick="switchLoginTab('register',this)">Register</button>
@@ -367,12 +394,12 @@ tr:last-child td{border-bottom:none}
 </div>
 
 <nav class="nav">
-  <div class="nav-logo">
-    <span style="color:var(--accent);letter-spacing:.1em;font-weight:600">ENDURANCE TEST</span>
-    <span style="color:var(--text3);margin:0 4px;font-size:10px">|</span>
-    <span style="background:linear-gradient(135deg,#3b82f6,#14b8a6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:700;letter-spacing:.05em">SYSTEM</span>
-    <span style="font-size:9px;color:var(--text3);letter-spacing:.12em;margin-left:5px;font-weight:400;opacity:.7">by NSP</span>
-  </div>
+<div class="nav-logo">
+  <div class="logo-dot-blink"></div>
+  <span style="color:var(--text); font-weight:600; letter-spacing:0.05em;">ENDURANCE</span>
+  <span class="logo-animate" style="font-size: 14px;">SYSTEM</span>
+  <span style="font-size: 9px; color: var(--text3); margin-left: 8px;">by NSP</span>
+</div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="gotoPage('dashboard')">Dashboard</button>
     <button class="nav-tab" id="new-job-tab" onclick="gotoPage('input')">New Job</button>
