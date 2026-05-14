@@ -6,6 +6,7 @@
 <title>Endurance Test Management</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
@@ -36,10 +37,6 @@ window._adminEmail = ADMIN_EMAIL;
 const DEV_EMAIL = 'nattapolbc2002@gmail.com';
 window._devEmail = DEV_EMAIL;
 
-function getRoleFromEmail(email) {
-  if (email.toLowerCase() === DEV_EMAIL.toLowerCase()) return 'dev';
-  return 'user';
-}
 function canApprove(role) {
   return role === 'dev' || role === 'admin';
 }
@@ -53,7 +50,12 @@ function startGuestListeners() {
   _jobsUnsubscribe = onSnapshot(q, (snapshot) => {
     window._jobs = [];
     snapshot.forEach(d => { window._jobs.push({ _id: d.id, ...d.data() }); });
-    window._jobs.sort((a,b) => { const dm=new Date(b.startdate)-new Date(a.startdate); return dm!==0?dm:a.no-b.no; });
+    window._jobs.sort((a,b) => { 
+      const tA = a.startdate ? new Date(`${a.startdate}T${String(a.startH||0).padStart(2,'0')}:${String(a.startM||0).padStart(2,'0')}:00`).getTime() : 0;
+      const tB = b.startdate ? new Date(`${b.startdate}T${String(b.startH||0).padStart(2,'0')}:${String(b.startM||0).padStart(2,'0')}:00`).getTime() : 0;
+      const dm = tB - tA;
+      return dm!==0?dm:a.no-b.no; 
+    });
     if (window._ready) {
       renderDashboard();
       renderRunning();
@@ -71,7 +73,12 @@ function startListeners() {
   _jobsUnsubscribe = onSnapshot(q, (snapshot) => {
     window._jobs = [];
     snapshot.forEach(d => { window._jobs.push({ _id: d.id, ...d.data() }); });
-    window._jobs.sort((a,b) => { const dm=new Date(b.startdate)-new Date(a.startdate); return dm!==0?dm:a.no-b.no; });
+    window._jobs.sort((a,b) => { 
+      const tA = a.startdate ? new Date(`${a.startdate}T${String(a.startH||0).padStart(2,'0')}:${String(a.startM||0).padStart(2,'0')}:00`).getTime() : 0;
+      const tB = b.startdate ? new Date(`${b.startdate}T${String(b.startH||0).padStart(2,'0')}:${String(b.startM||0).padStart(2,'0')}:00`).getTime() : 0;
+      const dm = tB - tA;
+      return dm!==0?dm:a.no-b.no; 
+    });
     if (window._ready && window._currentUser) {
       renderDashboard();
       renderRunning();
@@ -97,16 +104,26 @@ function stopListeners() {
   if (_usersUnsubscribe) { _usersUnsubscribe(); _usersUnsubscribe = null; }
 }
 
+let _initialAuth = true;
 onAuthStateChanged(auth, async (user) => {
+  const isInitial = _initialAuth;
+  _initialAuth = false; // Subsequent calls are not initial
+
   if (!user) {
     stopListeners();
     window._currentUser = null;
     window._userRole = 'guest';
     window._isAdmin = false;
     window._isGuest = true;
-    // Guest: can view but not edit - start read-only listeners
-    startGuestListeners();
-    if (typeof hideLoginScreen === 'function') hideLoginScreen();
+
+    if (isInitial) {
+      // On initial load, if no user, enter guest mode automatically.
+      startGuestListeners();
+      if (typeof hideLoginScreen === 'function') hideLoginScreen();
+    } else {
+      // If this is a subsequent sign-out (manual or from error), show the login screen.
+      if (typeof showLoginScreen === 'function') showLoginScreen();
+    }
     return;
   }
   window._isGuest = false;
@@ -115,10 +132,10 @@ onAuthStateChanged(auth, async (user) => {
     const userDoc = await getDoc(userRef);
     let userData;
     if (!userDoc.exists()) {
-      const isDev = user.email.toLowerCase() === DEV_EMAIL.toLowerCase();
+      const isDev = (user.email||'').toLowerCase() === DEV_EMAIL.toLowerCase();
       userData = {
-        email: user.email,
-        displayName: user.email.split('@')[0],
+        email: user.email||'',
+        displayName: (user.email||'').split('@')[0] || 'User',
         status: isDev ? 'approved' : 'pending',
         role: isDev ? 'dev' : 'user',
         createdAt: new Date().toISOString()
@@ -126,7 +143,7 @@ onAuthStateChanged(auth, async (user) => {
       await setDoc(userRef, userData);
     } else {
       userData = userDoc.data();
-      if (user.email.toLowerCase() === DEV_EMAIL.toLowerCase() && userData.role !== 'dev') {
+      if ((user.email||'').toLowerCase() === DEV_EMAIL.toLowerCase() && userData.role !== 'dev') {
         await updateDoc(userRef, { role: 'dev', status: 'approved' });
         userData = { ...userData, role: 'dev', status: 'approved' };
       }
@@ -137,11 +154,11 @@ onAuthStateChanged(auth, async (user) => {
     window._isAdmin = canApprove(window._userRole);
 
     if (userData.status === 'pending') {
-      if (typeof showPendingScreen === 'function') showPendingScreen(user.email);
+      if (typeof showPendingScreen === 'function') showPendingScreen(user.email||'');
       return;
     }
     if (userData.status === 'rejected') {
-      if (typeof showRejectedScreen === 'function') showRejectedScreen(user.email);
+      if (typeof showRejectedScreen === 'function') showRejectedScreen(user.email||'');
       return;
     }
 
@@ -152,7 +169,12 @@ onAuthStateChanged(auth, async (user) => {
 
   } catch(e) {
     console.error('Auth error:', e.code, e.message);
+    if (window._authFns && window._auth) {
+      window._authFns.signOut(window._auth).catch(()=>{});
+    }
     if (typeof showLoginScreen === 'function') showLoginScreen();
+    const errEl = document.getElementById('l-err');
+    if (errEl) { errEl.textContent = 'ไม่สามารถดึงข้อมูลผู้ใช้ได้ (' + (e.code||e.message) + ')'; errEl.style.display = 'block'; }
   }
 });
 
@@ -198,7 +220,13 @@ body{font-family:'IBM Plex Sans Thai',sans-serif;background:var(--bg);color:var(
 .sec-title{font-size:18px;font-weight:500}
 .sec-sub{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px}
 .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.5rem}
-.mc{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem}
+.mc{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;text-align:center}
+.mc:hover{transform:translateY(-2px);box-shadow:0 4px 15px rgba(0,0,0,.3);border-color:var(--border2)}
+.mc-blue:hover{box-shadow:0 0 15px rgba(59,130,246,.4);border-color:rgba(59,130,246,.6)}
+.mc-green:hover{box-shadow:0 0 15px rgba(34,197,94,.4);border-color:rgba(34,197,94,.6)}
+.mc-white:hover{box-shadow:0 0 15px rgba(255,255,255,.2);border-color:rgba(255,255,255,.4)}
+.mc-amber:hover{box-shadow:0 0 15px rgba(245,158,11,.4);border-color:rgba(245,158,11,.6)}
+.mc-red:hover{box-shadow:0 0 15px rgba(239,68,68,.4);border-color:rgba(239,68,68,.6)}
 .mc-label{font-size:10px;color:var(--text3);margin-bottom:5px;letter-spacing:.04em}
 .mc-val{font-size:22px;font-weight:500;font-family:var(--mono)}
 .mc-val.green{color:var(--green)}.mc-val.amber{color:var(--amber)}.mc-val.blue{color:var(--accent)}.mc-val.teal{color:var(--teal)}.mc-val.red{color:var(--red)}
@@ -282,7 +310,6 @@ tr:last-child td{border-bottom:none}
 .jig-ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3)}
 .jig-warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3)}
 .jig-err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3)}
-.calc-box{background:var(--bg3);border-radius:10px;padding:1rem 1.25rem;margin-bottom:12px}
 /* Login Screen */
 .login-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
 .login-box{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:2rem;width:90%;max-width:420px}
@@ -395,7 +422,6 @@ tr:last-child td{border-bottom:none}
 
 <nav class="nav">
 <div class="nav-logo">
-  <div class="logo-dot-blink"></div>
   <span style="color:var(--text); font-weight:600; letter-spacing:0.05em;">ENDURANCE</span>
   <span class="logo-animate" style="font-size: 14px;">SYSTEM</span>
   <span style="font-size: 9px; color: var(--text3); margin-left: 8px;">by NSP</span>
@@ -441,6 +467,22 @@ tr:last-child td{border-bottom:none}
   <div class="g2">
     <div class="card"><p class="card-title">Active Jobs — Running</p><div id="dash-running"></div></div>
     <div class="card"><p class="card-title">Planned Jobs</p><div id="dash-planned"></div></div>
+  </div>
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:1rem">
+      <p class="card-title" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">Monthly Jobs Duration & Start Times</p>
+      <select id="dash-chart-month" onchange="renderDashboard()" style="width:130px; font-size:11px; padding:4px 8px; background:var(--bg3); border:1px solid var(--border); color:var(--text); border-radius:6px; outline:none;"></select>
+    </div>
+    <div class="g2" style="align-items:start">
+      <div style="background:rgba(0,0,0,0.15); border-radius:8px; padding:10px; border:1px solid rgba(255,255,255,0.02)">
+        <div style="font-size:12px; font-weight:500; text-align:center; color:var(--text2); margin-bottom:8px">Machine No. 1</div>
+        <div style="height: 280px; position: relative;"><canvas id="dash-chart-m1"></canvas></div>
+      </div>
+      <div style="background:rgba(0,0,0,0.15); border-radius:8px; padding:10px; border:1px solid rgba(255,255,255,0.02)">
+        <div style="font-size:12px; font-weight:500; text-align:center; color:var(--text2); margin-bottom:8px">Machine No. 2</div>
+        <div style="height: 280px; position: relative;"><canvas id="dash-chart-m2"></canvas></div>
+      </div>
+    </div>
   </div>
   <div class="card"><p class="card-title">Summary by Customer</p><div id="dash-customer"></div></div>
   <div style="background:linear-gradient(135deg,var(--bg2),rgba(20,184,166,.05));border:1px solid rgba(20,184,166,.2);border-radius:14px;padding:1.2rem 1.5rem;margin-top:12px">
@@ -534,8 +576,14 @@ tr:last-child td{border-bottom:none}
       <button class="btn btn-success btn-sm" onclick="exportActiveExcel()">⬇ Export Active</button>
     </div>
   </div>
-  <div class="sec-divider">Running</div>
-  <div id="run-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:1.5rem"></div>
+  <div id="running-section">
+    <div class="sec-divider">Running</div>
+    <div id="run-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:1.5rem"></div>
+  </div>
+  <div id="paused-section" style="display:none">
+    <div class="sec-divider" style="color:var(--amber);border-bottom-color:rgba(245,158,11,.3)">Paused</div>
+    <div id="paused-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:1.5rem"></div>
+  </div>
   <div id="planned-section">
     <div class="sec-divider">Planned</div>
     <div id="plan-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px"></div>
@@ -549,6 +597,9 @@ tr:last-child td{border-bottom:none}
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <select id="hist-m" onchange="renderHistory()" style="width:145px">
         <option value="all">All Machines</option><option value="1">Machine No.1</option><option value="2">Machine No.2</option>
+      </select>
+      <select id="hist-month" onchange="renderHistory()" style="width:130px">
+        <option value="all">All Months</option>
       </select>
       <select id="hist-s" onchange="renderHistory()" style="width:120px">
         <option value="all">All Status</option><option value="Run">Run</option><option value="Finished">Finished</option><option value="Plan">Plan</option><option value="Stop">Stop</option>
@@ -574,6 +625,9 @@ tr:last-child td{border-bottom:none}
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <select id="exp-m" onchange="renderExport()" style="width:150px">
         <option value="all">All Machines</option><option value="1">Machine No.1</option><option value="2">Machine No.2</option>
+      </select>
+      <select id="exp-month" onchange="renderExport()" style="width:130px">
+        <option value="all">All Months</option>
       </select>
       <select id="exp-s" onchange="renderExport()" style="width:145px">
         <option value="all">All Status</option><option value="Run">Run</option><option value="Finished">Finished</option><option value="Plan">Plan</option>
@@ -813,6 +867,19 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<!-- DASHBOARD LIST MODAL -->
+<div class="ov" id="modal-dash-list">
+  <div class="modal" style="max-width:860px">
+    <div class="modal-title"><span id="dash-list-title">Job List</span><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-dash-list')">✕</button></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Machine</th><th>No.</th><th>Part No.</th><th>Lot No.</th><th>Start Date</th><th>Finish Date</th><th>Duration</th></tr></thead>
+        <tbody id="dash-list-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- SETTINGS / NOTIFY PAGE -->
 <div class="page" id="page-settings">
   <div class="sec-hdr">
@@ -864,7 +931,7 @@ function dhm(j){
   const mins=(f-startDt(j))/60000;
   return{d:Math.floor(mins/1440),h:Math.floor((mins%1440)/60),m:Math.round(mins%60),total:mins/1440};
 }
-function fmtDT(d){if(!d)return'—';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
+function fmtDT(d){if(!d||isNaN(d))return'—';return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
 function fmtDateUS(d){return d?d.toLocaleDateString('en-US',{month:'numeric',day:'numeric',year:'numeric'}):'—';}
 function effectiveStatus(j){
   if(j.status==='Stop') return 'Stop';
@@ -974,15 +1041,33 @@ setInterval(()=>{
 },1000);
 
 function gotoPage(id){
+  if(id==='admin'&&!window._isAdmin){toast('Dev/Admin only','err');return;}
+  if(id==='input'&&(window._isGuest||!window._currentUser)){toast('กรุณา Sign In ก่อนเพิ่มงาน','err');handleNavAuth();return;}
+
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
+
+  if(id === 'jig') {
+    document.querySelectorAll('.nav-tab').forEach(function(t){
+      if(t.getAttribute('onclick') && t.getAttribute('onclick').indexOf("'jig'") >= 0) t.classList.add('active');
+    });
+    renderJigList();
+    calcJigPage();
+    return;
+  }
+
   const map={dashboard:0,input:1,running:2,history:3,export:4,settings:5,jig:6,admin:7};
-  document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
+  if(map[id] !== undefined && document.querySelectorAll('.nav-tab')[map[id]]) {
+    document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
+  }
+
   if(id==='dashboard')renderDashboard();
   if(id==='running')renderRunning();
   if(id==='history')renderHistory();
   if(id==='export')renderExport();
+  if(id==='settings')renderSettings();
+  if(id==='admin')renderAdminPanel();
 }
 
 function autoCalc(){
@@ -1073,14 +1158,15 @@ function renderDashboard(){
   const jobs=window._jobs||[];
   const mf=document.getElementById('filter-machine').value;
   const all=mf==='all'?jobs:jobs.filter(j=>j.machine===mf);
-  const run=all.filter(j=>j.status==='Run'),fin=all.filter(j=>j.status==='Finished'),plan=all.filter(j=>j.status==='Plan'),stop=all.filter(j=>j.status==='Stop');
+  const run=all.filter(j=>j.status==='Run'&&!j.paused),paused=all.filter(j=>j.status==='Run'&&j.paused),fin=all.filter(j=>j.status==='Finished'),plan=all.filter(j=>j.status==='Plan'),stop=all.filter(j=>j.status==='Stop');
   const tc=all.reduce((s,j)=>s+(j.cycles||0),0);
   document.getElementById('dash-metrics').innerHTML=`
-    <div class="mc"><div class="mc-label">TOTAL JOBS</div><div class="mc-val blue">${all.length}</div></div>
-    <div class="mc"><div class="mc-label">RUNNING</div><div class="mc-val green">${run.length}</div></div>
-    <div class="mc"><div class="mc-label">FINISHED</div><div class="mc-val">${fin.length}</div></div>
-    <div class="mc"><div class="mc-label">PLANNED</div><div class="mc-val amber">${plan.length}</div></div>
-    <div class="mc"><div class="mc-label">STOPPED</div><div class="mc-val red">${stop.length}</div></div>`;
+    <div class="mc mc-blue" onclick="openDashList('All')"><div class="mc-label">TOTAL JOBS</div><div class="mc-val blue">${all.length}</div></div>
+    <div class="mc mc-green" onclick="openDashList('Run')"><div class="mc-label">RUNNING</div><div class="mc-val green">${run.length}</div></div>
+    <div class="mc mc-amber" onclick="openDashList('Paused')"><div class="mc-label">PAUSED</div><div class="mc-val amber">${paused.length}</div></div>
+    <div class="mc mc-white" onclick="openDashList('Finished')"><div class="mc-label">FINISHED</div><div class="mc-val">${fin.length}</div></div>
+    <div class="mc mc-amber" onclick="openDashList('Plan')"><div class="mc-label">PLANNED</div><div class="mc-val amber">${plan.length}</div></div>
+    <div class="mc mc-red" onclick="openDashList('Stop')"><div class="mc-label">STOPPED</div><div class="mc-val red">${stop.length}</div></div>`;
   // Sort running by no
   const runSorted=[...run].sort((a,b)=>a.no-b.no);
   const planSorted=[...plan].sort((a,b)=>a.no-b.no);
@@ -1133,7 +1219,7 @@ function renderDashboard(){
       const dd2=Math.floor(absMins/1440),dh2=Math.floor((absMins%1440)/60),dm2=Math.round(absMins%60);
       const countdownStr=isNeg?'เริ่มแล้ว':`${dd2}d ${dh2}h ${dm2}m`;
       const color=ms<86400000&&ms>0?'color:var(--red);font-weight:500':'color:var(--text3)';
-      return`<tr><td>${j.no}</td><td>${j.partno||'—'}</td><td>${j.customer}</td><td>${j.lotno}</td><td>${j.startdate}</td><td style="${color}">${countdownStr}</td></tr>`;
+      return`<tr><td>${j.no}</td><td>${j.partno||'—'}</td><td>${j.customer}</td><td>${j.lotno}</td><td style="font-family:var(--mono);font-size:10px">${fmtDT(startDt(j))}</td><td style="${color}">${countdownStr}</td></tr>`;
     }).join('');
   });
 
@@ -1152,7 +1238,7 @@ function renderDashboard(){
           <div style="font-size:12px;font-weight:500">M${j.machine} #${j.no} — ${j.customer} / ${j.lotno}</div>
           <div style="display:flex;gap:12px;margin-top:3px;flex-wrap:wrap">
             <span style="font-size:10px;color:var(--teal);font-family:var(--mono)">${j.partno||'—'}</span>
-            <span style="font-size:10px;color:var(--text3)">${j.startdate} ${j.startH}:${pad(j.startM)}</span>
+            <span style="font-size:10px;color:var(--text3)">${fmtDT(startDt(j))}</span>
           </div>
         </div>
         <span style="font-family:var(--mono);font-size:12px;color:var(--red);font-weight:500;white-space:nowrap;margin-left:12px">เริ่มใน ${hh}h ${mm}m</span>
@@ -1161,6 +1247,94 @@ function renderDashboard(){
   } else {
     soonCard.style.display='none';
   }
+
+  // --- Render Chart ---
+  (function(){
+    const validJobs = all.filter(j => j.startdate);
+    validJobs.sort((a, b) => new Date(a.startdate) - new Date(b.startdate));
+    const monthsSet = new Set(validJobs.map(j => j.startdate.slice(0, 7)));
+    const monthsArr = Array.from(monthsSet).sort().reverse();
+    
+    const chartMonthEl = document.getElementById('dash-chart-month');
+    if(chartMonthEl && chartMonthEl.options.length === 0 && monthsArr.length > 0){
+        chartMonthEl.innerHTML = monthsArr.map(m => `<option value="${m}">${m}</option>`).join('');
+    } else if(chartMonthEl && monthsArr.length > 0) {
+        const cur = chartMonthEl.value;
+        chartMonthEl.innerHTML = monthsArr.map(m => `<option value="${m}" ${m===cur?'selected':''}>${m}</option>`).join('');
+        if(!monthsArr.includes(cur)) chartMonthEl.value = monthsArr[0];
+    }
+    
+    const selectedMonth = chartMonthEl ? chartMonthEl.value : (monthsArr[0] || '');
+    const filteredJobs = selectedMonth ? validJobs.filter(j => j.startdate.slice(0, 7) === selectedMonth) : [];
+    
+    Chart.defaults.color = '#e8edf7';
+    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.15)';
+
+    function renderMachineChart(machineId, canvasId, chartKey) {
+      const mJobs = filteredJobs.filter(j => String(j.machine) === machineId);
+      const labels = mJobs.map(j => [`#${j.no}`, j.startdate ? `${j.startdate.slice(8,10)}/${j.startdate.slice(5,7)}` : '']);
+      const barData = mJobs.map(j => parseFloat(dhm(j).total.toFixed(2)));
+      const lineData = mJobs.map(j => (j.startH || 0) + ((j.startM || 0) / 60));
+      const bgColors = mJobs.map(j => {
+        if(j.status === 'Stop') return 'rgba(239, 68, 68, 0.6)';
+        if(j.status === 'Finished') return 'rgba(59, 130, 246, 0.6)';
+        if(j.status === 'Plan') return 'rgba(245, 158, 11, 0.6)';
+        if(j.status === 'Run' && j.paused) return 'rgba(245, 158, 11, 0.6)';
+        return 'rgba(34, 197, 94, 0.6)';
+      });
+      const bdColors = mJobs.map(j => {
+        if(j.status === 'Stop') return '#ef4444';
+        if(j.status === 'Finished') return '#3b82f6';
+        if(j.status === 'Plan') return '#f59e0b';
+        if(j.status === 'Run' && j.paused) return '#f59e0b';
+        return '#22c55e';
+      });
+
+      const ctx = document.getElementById(canvasId).getContext('2d');
+      if(window[chartKey]) window[chartKey].destroy();
+      window[chartKey] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            { type: 'bar', label: 'Duration (Days)', data: barData, backgroundColor: bgColors, borderColor: bdColors, borderWidth: 1, yAxisID: 'y', borderRadius: 4, barPercentage: 0.6 },
+            { type: 'line', label: 'Start Time', data: lineData, backgroundColor: '#f59e0b', borderColor: '#f59e0b', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#f59e0b', pointBorderColor: '#fff', pointHoverRadius: 6, tension: 0.3, yAxisID: 'y1' }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: true, position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11, family: "'IBM Plex Sans Thai', sans-serif" }, color: '#e8edf7' } },
+            tooltip: {
+              backgroundColor: 'rgba(15, 17, 23, 0.95)', titleColor: '#3b82f6', bodyColor: '#e8edf7', borderColor: '#3a4a66', borderWidth: 1, padding: 10,
+              callbacks: {
+                title: function(ctx){ const job = mJobs[ctx[0].dataIndex]; return `Job #${job.no} | Lot: ${job.lotno||'-'}`; },
+                label: function(ctx) {
+                  const job = mJobs[ctx.dataIndex];
+                  if(ctx.dataset.type === 'line') return `🕒 Start: ${String(job.startH||0).padStart(2,'0')}:${String(job.startM||0).padStart(2,'0')}`;
+                  const dd = dhm(job);
+                  let stat = job.status; if(stat === 'Run' && job.paused) stat = 'Paused';
+                  return `⏳ Duration: ${dd.d}d ${dd.h}h ${dd.m}m [${stat}]`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { family: "'IBM Plex Mono', monospace", size: 10 }, color: '#e8edf7' } },
+            y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Duration (Days)', color: '#e8edf7', font: { size: 11, weight: '500' } }, beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.15)', borderDash: [4, 4] }, ticks: { font: { family: "'IBM Plex Mono', monospace", size: 10 }, color: '#e8edf7' } },
+            y1: {
+              type: 'linear', display: true, position: 'right', title: { display: true, text: 'Start Time', color: '#e8edf7', font: { size: 11, weight: '500' } }, min: 0, max: 24, grid: { drawOnChartArea: false },
+              ticks: { stepSize: 6, font: { family: "'IBM Plex Mono', monospace", size: 10 }, color: '#e8edf7', callback: function(val){ const h=Math.floor(val); const m=Math.round((val-h)*60); return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'); } }
+            }
+          }
+        }
+      });
+    }
+
+    renderMachineChart('1', 'dash-chart-m1', '_dashChartM1');
+    renderMachineChart('2', 'dash-chart-m2', '_dashChartM2');
+  })();
 
   const cust={};all.forEach(j=>{if(!cust[j.customer])cust[j.customer]={n:0,c:0,d:0};cust[j.customer].n++;cust[j.customer].c+=j.cycles||0;if(j.status==='Finished')cust[j.customer].d++;});
   if(typeof renderOverlapIndicator==='function')renderOverlapIndicator();
@@ -1206,6 +1380,50 @@ function renderDashboard(){
   document.getElementById('dash-customer').innerHTML=`<table style="width:100%;font-size:12px"><thead><tr><th>Customer</th><th>Jobs</th><th>Finished</th><th>Total Cycles</th><th>Share</th></tr></thead><tbody>${Object.entries(cust).sort((a,b)=>b[1].c-a[1].c).map(([c,v])=>{const p=tc?Math.round(v.c/tc*100):0;return`<tr><td>${c}</td><td>${v.n}</td><td>${v.d}</td><td>${v.c.toLocaleString()}</td><td><div style="display:flex;align-items:center;gap:6px"><div class="prog-bg" style="width:90px"><div class="prog-fill" style="width:${p}%;background:var(--accent)"></div></div><span style="font-size:10px;color:var(--text3)">${p}%</span></div></td></tr>`;}).join('')}</tbody></table>`;
 }
 
+function openDashList(status) {
+  const jobs = window._jobs || [];
+  const mf = document.getElementById('filter-machine').value;
+  let list = mf === 'all' ? jobs : jobs.filter(j => j.machine === mf);
+  
+  if (status !== 'All') {
+    if (status === 'Run') list = list.filter(j => j.status === 'Run' && !j.paused);
+    else if (status === 'Paused') list = list.filter(j => j.status === 'Run' && j.paused);
+    else list = list.filter(j => j.status === status);
+  }
+  
+  list.sort((a,b) => {
+    const tA = a.startdate ? new Date(`${a.startdate}T${pad(a.startH||0)}:${pad(a.startM||0)}:00`).getTime() : 0;
+    const tB = b.startdate ? new Date(`${b.startdate}T${pad(b.startH||0)}:${pad(b.startM||0)}:00`).getTime() : 0;
+    if(tB !== tA) return tB - tA;
+    return a.no - b.no;
+  });
+
+  const titles = {'All': 'TOTAL JOBS', 'Run': 'RUNNING JOBS', 'Paused': 'PAUSED JOBS', 'Finished': 'FINISHED JOBS', 'Plan': 'PLANNED JOBS', 'Stop': 'STOPPED JOBS'};
+  document.getElementById('dash-list-title').textContent = titles[status] || 'Job List';
+
+  const tbody = document.getElementById('dash-list-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">No records found</td></tr>';
+  } else {
+    tbody.innerHTML = list.map(j => {
+      const fin2 = typeof calcFinishWithPause==='function'?calcFinishWithPause(j):finishDt(j);
+      const dd = dhm(j);
+      const durStr = (dd.d || dd.h || dd.m) ? `${dd.d}d ${dd.h}h ${dd.m}m` : '—';
+      const startStr = j.startdate ? fmtDT(startDt(j)) : '—';
+      return `<tr>
+        <td>M${j.machine}</td>
+        <td>#${j.no}</td>
+        <td>${j.partno || '—'}</td>
+        <td>${j.lotno || '—'}</td>
+        <td style="font-family:var(--mono); font-size:11px">${startStr}</td>
+        <td style="font-family:var(--mono); font-size:11px; color:var(--teal)">${fmtDT(fin2)}</td>
+        <td style="font-family:var(--mono); font-size:11px; color:var(--amber)">${durStr}</td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById('modal-dash-list').classList.add('open');
+}
+
 function calcElapsedMins(j){
   // Calculate effective elapsed minutes accounting for pause/downtime and cycle adjustments
   const now=new Date().getTime();
@@ -1244,7 +1462,7 @@ function jobCard(j,type){
   const rd=Math.floor(rem/1440),rh=Math.floor((rem%1440)/60),rm=Math.round(rem%60);
   const fid=j._id;
   const cid='cd-'+fid.replace(/[^a-z0-9]/gi,'');
-  const seqLabel=j._seq?`#${j._seq}`:`#${j.no}`;
+  const seqLabel=`#${j.no}`;
   // Find matching Jig from database
   const jigTag=(()=>{
     if(typeof loadJigs!=='function')return '';
@@ -1287,7 +1505,7 @@ function jobCard(j,type){
       <span class="countdown" id="${cid}-rem" style="color:${j.paused?'var(--amber)':'var(--teal)'}">${j.paused?'PAUSED':`${rd}d ${rh}h ${rm}m`}</span>
     </div>`:`
     <div style="display:flex;justify-content:space-between;font-size:10px;flex-wrap:wrap;gap:3px;margin-top:5px">
-      <span style="color:var(--text3)">Start: ${j.startdate} ${j.startH}:${pad(j.startM)}</span>
+      <span style="color:var(--text3)">Start: ${fmtDT(startDt(j))}</span>
       <span style="color:var(--amber);font-family:var(--mono);font-size:10px">Duration: ${dd.d}d ${dd.h}h ${dd.m}m</span>
     </div>
     <div style="font-size:10px;color:var(--text3);margin-top:2px">Finish: ${fmtDT(fin2)}</div>`}
@@ -1313,39 +1531,50 @@ function renderRunning(){
   // All active (Run + Plan), sorted by startdate asc
   const active=jobs
     .filter(j=>(j.status==='Run'||j.status==='Plan')&&(mf==='all'||j.machine===mf))
-    .sort((a,b)=>new Date(a.startdate+' '+pad(a.startH)+':'+pad(a.startM))-new Date(b.startdate+' '+pad(b.startH)+':'+pad(b.startM)));
-  
-  // Assign sequential order across all months (1,2,3,4...)
-  // Reset number after each finished job (they don't appear here)
-  const withSeq=active.map((j,i)=>({...j,_seq:i+1}));
+    .sort((a,b)=>{
+      const tA = a.startdate ? new Date(`${a.startdate}T${pad(a.startH||0)}:${pad(a.startM||0)}:00`).getTime() : 0;
+      const tB = b.startdate ? new Date(`${b.startdate}T${pad(b.startH||0)}:${pad(b.startM||0)}:00`).getTime() : 0;
+      if (tA !== tB) return tA - tB;
+      return a.no - b.no;
+    });
 
   // Group by month
   const grouped={};
-  withSeq.forEach(j=>{
+  active.forEach(j=>{
     const k=monthKey(j.startdate);
     if(!grouped[k])grouped[k]=[];
     grouped[k].push(j);
   });
 
   const runEl=document.getElementById('run-grid');
+  const pausedEl=document.getElementById('paused-grid');
   const planEl=document.getElementById('plan-grid');
 
   if(!active.length){
     runEl.innerHTML='<div class="empty" style="grid-column:1/-1">No active jobs</div>';
+    if(pausedEl) pausedEl.innerHTML='';
     planEl.innerHTML='';
     document.getElementById('planned-section').style.display='none';
+    if(document.getElementById('paused-section')) document.getElementById('paused-section').style.display='none';
     return;
   }
 
   document.getElementById('planned-section').style.display='block';
 
   // Render Running section grouped by month
-  const runJobs=withSeq.filter(j=>j.status==='Run');
-  const planJobs=withSeq.filter(j=>j.status==='Plan');
+  const runJobs=active.filter(j=>j.status==='Run' && !j.paused);
+  const pauseJobs=active.filter(j=>j.status==='Run' && j.paused);
+  const planJobs=active.filter(j=>j.status==='Plan');
+  
+  if(document.getElementById('paused-section')) {
+    document.getElementById('paused-section').style.display = pauseJobs.length ? 'block' : 'none';
+  }
 
   // Group running by month
   const runGrouped={};
   runJobs.forEach(j=>{const k=monthKey(j.startdate);if(!runGrouped[k])runGrouped[k]=[];runGrouped[k].push(j);});
+  const pauseGrouped={};
+  pauseJobs.forEach(j=>{const k=monthKey(j.startdate);if(!pauseGrouped[k])pauseGrouped[k]=[];pauseGrouped[k].push(j);});
   const planGrouped={};
   planJobs.forEach(j=>{const k=monthKey(j.startdate);if(!planGrouped[k])planGrouped[k]=[];planGrouped[k].push(j);});
 
@@ -1372,6 +1601,7 @@ function renderRunning(){
   }
 
   runEl.innerHTML=renderGrouped(runGrouped,'No running jobs',false);
+  if(pausedEl) pausedEl.innerHTML=renderGrouped(pauseGrouped,'No paused jobs',false);
   planEl.innerHTML=renderGrouped(planGrouped,'No planned jobs',true);
 }
 
@@ -1567,7 +1797,7 @@ function openDetail(fid){
       <div class="det-row"><div class="det-key">Machine Speed</div><div class="det-val">${j.speed} cycle/min</div></div>
       <div class="det-row"><div class="det-key">Total Target Cycles</div><div class="det-val">${j.cycles.toLocaleString()}</div></div>
       <div class="det-sec">Schedule &amp; Progress</div>
-      <div class="det-row"><div class="det-key">Start</div><div class="det-val" style="font-family:var(--mono)">${j.startdate} &nbsp; ${j.startH}:${pad(j.startM)}</div></div>
+      <div class="det-row"><div class="det-key">Start</div><div class="det-val" style="color:var(--teal);font-family:var(--mono)">${fmtDT(startDt(j))}</div></div>
       <div class="det-row"><div class="det-key">Estimated Finish</div><div class="det-val" style="color:var(--teal);font-family:var(--mono)">${fmtDT(fin2)}</div></div>
       <div class="det-row"><div class="det-key">Duration</div><div class="det-val"><span style="font-family:var(--mono)">${dd.d}d ${dd.h}h ${dd.m}m</span> <span style="color:var(--text3);font-size:11px">(${dd.total.toFixed(3)} days)</span></div></div>
       ${(j.downtimeLog&&j.downtimeLog.length)?`
@@ -1622,21 +1852,37 @@ function toggleHistMth(slug){
 function renderHistory(){
   const jobs=window._jobs||[];
   const mf=document.getElementById('hist-m').value,sf=document.getElementById('hist-s').value,cf=document.getElementById('hist-c').value;
+  const mthEl=document.getElementById('hist-month');
+  const mthFilter=mthEl?mthEl.value:'all';
   const q=(document.getElementById('hist-q').value||'').toLowerCase().trim();
   const custs=[...new Set(jobs.map(j=>j.customer))].sort();
   const csel=document.getElementById('hist-c');const cur=csel.value;
   csel.innerHTML='<option value="all">All Customers</option>'+custs.map(c=>`<option value="${c}"${c===cur?' selected':''}>${c}</option>`).join('');
+  
+  if(mthEl){
+    const months=[...new Set(jobs.map(j=>j.startdate?j.startdate.slice(0,7):'').filter(Boolean))].sort().reverse();
+    mthEl.innerHTML='<option value="all">All Months</option>'+months.map(m=>`<option value="${m}"${m===mthFilter?' selected':''}>${m}</option>`).join('');
+  }
+
   let filtered=jobs.filter(j=>
     (mf==='all'||j.machine===mf)&&(sf==='all'||j.status===sf)&&(cf==='all'||j.customer===cf)&&
+    (mthFilter==='all'||(j.startdate&&j.startdate.slice(0,7)===mthFilter))&&
     (!q||(j.partno||'').toLowerCase().includes(q)||(j.lotno||'').toLowerCase().includes(q)||(j.customer||'').toLowerCase().includes(q))
   ).sort((a,b)=>{
-    const dm=new Date(b.startdate)-new Date(a.startdate);
+    const tA = a.startdate ? new Date(`${a.startdate}T${pad(a.startH||0)}:${pad(a.startM||0)}:00`).getTime() : 0;
+    const tB = b.startdate ? new Date(`${b.startdate}T${pad(b.startH||0)}:${pad(b.startM||0)}:00`).getTime() : 0;
+    const dm = tB - tA;
     if(dm!==0)return dm;
     return a.no-b.no;
   });
   const grouped={};
   filtered.forEach(j=>{const k=monthKey(j.startdate);if(!grouped[k])grouped[k]=[];grouped[k].push(j);});
-  Object.values(grouped).forEach(rows=>rows.sort((a,b)=>a.no-b.no));
+  Object.values(grouped).forEach(rows=>rows.sort((a,b)=>{
+    const tA = a.startdate ? new Date(`${a.startdate}T${pad(a.startH||0)}:${pad(a.startM||0)}:00`).getTime() : 0;
+    const tB = b.startdate ? new Date(`${b.startdate}T${pad(b.startH||0)}:${pad(b.startM||0)}:00`).getTime() : 0;
+    if(tA !== tB) return tA - tB;
+    return a.no - b.no;
+  }));
   const el=document.getElementById('hist-container');
   if(!filtered.length){el.innerHTML='<div class="empty">No records found</div>';return;}
   // Group by year then month
@@ -1690,7 +1936,7 @@ function renderHistory(){
         html+='<tr>'
           +'<td>M'+j.machine+'</td><td>'+j.no+'</td><td>'+j.customer+'</td><td>'+j.partno+'</td><td>'+j.pcs+'</td><td>'+j.lotno+'</td>'
           +'<td>'+j.l1+'</td><td>'+j.l2+'</td><td>'+j.stroke+'</td><td>'+(j.sr||'—')+'</td><td>'+j.load+'</td>'
-          +'<td>'+j.speed+'</td><td>'+((j.cycles||0).toLocaleString())+'</td><td>'+j.startdate+'</td>'
+          +'<td>'+j.speed+'</td><td>'+((j.cycles||0).toLocaleString())+'</td><td style="font-size:11px">'+fmtDT(startDt(j))+'</td>'
           +'<td style="font-size:11px">'+fmtDT(fin2)+'</td><td>'+dd.d+'d '+dd.h+'h '+dd.m+'m</td>'
           +'<td>'+sBadgeJ(j)+'</td><td style="color:var(--text3)">'+(j.note||'')+'</td>'
           +'<td><div style="display:flex;gap:4px"><button class="btn btn-ghost btn-sm" onclick="openDetail(window._histKeys.'+fKey+')">Detail</button>'+editBtns+'</div></td>'
@@ -1745,7 +1991,7 @@ function renderExport(){
     const cur=mthEl.value;
     mthEl.innerHTML='<option value="all">All Months</option>'+months.map(m=>'<option value="'+m+'"'+(m===cur?' selected':'')+'>'+m+'</option>').join('');
   }
-  const visible=jobs.filter(j=>(mf==='all'||j.machine===mf)&&(sf==='all'||j.status===sf)&&(mth==='all'||j.startdate.slice(0,7)===mth));
+  const visible=jobs.filter(j=>(mf==='all'||j.machine===mf)&&(sf==='all'||j.status===sf)&&(mth==='all'||(j.startdate&&j.startdate.slice(0,7)===mth)));
   expSel=new Set([...expSel].filter(i=>visible.some(j=>j._id===i)));
   document.getElementById('exp-list').innerHTML=visible.map(j=>`
     <div class="cb-row" onclick="toggleJob('${j._id}',event)">
@@ -1755,7 +2001,7 @@ function renderExport(){
         <span style="font-size:13px;font-weight:500">${j.customer}</span>
         <span style="font-size:11px;color:var(--text2)">${j.partno}</span>
         <span class="chip">${j.lotno}</span>
-        <span style="font-size:10px;color:var(--text3)">${j.startdate}</span>
+        <span style="font-size:10px;color:var(--text3)">${fmtDT(startDt(j))}</span>
         <span style="font-size:10px;color:var(--text3)">${(j.cycles||0).toLocaleString()}</span>
         ${sBadgeJ(j)}
       </div>
@@ -1793,13 +2039,25 @@ function renderExportPreview(visible){
   const sel=visible.filter(j=>expSel.has(j._id));
   const tbody=document.getElementById('exp-tbody');
   if(!sel.length){tbody.innerHTML=`<tr><td colspan="18" class="empty">No jobs selected</td></tr>`;return;}
-  tbody.innerHTML=sel.map(j=>{const fin2=finishDt(j),dd=dhm(j);return`<tr>
-    <td>${j.no}</td><td>${j.partno}</td><td>${j.pcs}</td><td>${j.lotno}</td>
+  
+  const sortedSel=[...sel].sort((a,b)=>{
+    const tA = a.startdate ? new Date(`${a.startdate}T${pad(a.startH||0)}:${pad(a.startM||0)}:00`).getTime() : 0;
+    const tB = b.startdate ? new Date(`${b.startdate}T${pad(b.startH||0)}:${pad(b.startM||0)}:00`).getTime() : 0;
+    if(tA !== tB) return tA - tB;
+    return a.no - b.no;
+  });
+  tbody.innerHTML=sortedSel.map((j,idx)=>{
+    const fin2=typeof calcFinishWithPause==='function'?calcFinishWithPause(j):finishDt(j);
+    const dd=dhm(j);
+    let expStatus = j.status;
+    if (j.status === 'Run') expStatus = j.paused ? 'Paused' : 'Run';
+    return`<tr>
+    <td>${idx+1}</td><td>${j.partno}</td><td>${j.pcs}</td><td>${j.lotno}</td>
     <td>${j.l1}mm</td><td>${j.l2}mm</td><td>${j.stroke}mm</td><td>${j.load}N</td>
-    <td>${sBadge(j.status)}</td><td>${j.speed}</td><td>${(j.cycles||0).toLocaleString()}</td>
+    <td>${j.paused ? '<span class="badge b-plan" style="background:rgba(245,158,11,.15);color:var(--amber);border-color:rgba(245,158,11,.3)">Paused</span>' : sBadge(j.status)}</td><td>${j.speed}</td><td>${(j.cycles||0).toLocaleString()}</td>
     <td>${j.startdate}</td><td>${j.startH}</td><td>${j.startM}</td>
     <td>${dd.total.toFixed(3)}</td><td style="font-size:11px">${fmtDT(fin2)}</td>
-    <td>0</td><td>${j.status==='Finished'?'Finished':'—'}</td>
+    <td>0</td><td>${expStatus==='Finished'?'Finished':'—'}</td>
   </tr>`;}).join('');
 }
 function exportExcel(){
@@ -1822,8 +2080,10 @@ function buildExcel(rows,fname){
 
   // ---- Sort all rows by start date ASC ----
   const allSorted=[...rows].sort((a,b)=>{
-    return new Date(`${a.startdate}T${pad(a.startH||0)}:${pad(a.startM||0)}:00`)-
-           new Date(`${b.startdate}T${pad(b.startH||0)}:${pad(b.startM||0)}:00`);
+    const tA = a.startdate ? new Date(`${a.startdate}T${pad(a.startH||0)}:${pad(a.startM||0)}:00`).getTime() : 0;
+    const tB = b.startdate ? new Date(`${b.startdate}T${pad(b.startH||0)}:${pad(b.startM||0)}:00`).getTime() : 0;
+    if(tA !== tB) return tA - tB;
+    return a.no - b.no;
   });
 
   // ---- Sheet per Machine (original format) ----
@@ -1835,22 +2095,26 @@ function buildExcel(rows,fname){
     let rowNum=0;
     mr.forEach(j=>{
       rowNum++;
-      const fin2=finishDt(j),dd=dhm(j);
+      const fin2=typeof calcFinishWithPause==='function'?calcFinishWithPause(j):finishDt(j);
+      const dd=dhm(j);
       const finStr=fin2?fmtDateUS(fin2)+' '+fin2.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
-      const elC=j.startdate?Math.round((j.speed||500)*Math.max(0,(now-startDt(j))/60000)):0;
+      const elMins=typeof calcElapsedMins==='function'?calcElapsedMins(j):Math.max(0,(now-startDt(j))/60000);
+      const elC=j.startdate?Math.round((j.speed||500)*elMins):0;
       const rem=j.status==='Finished'?0:Math.max(0,(j.cycles||0)-elC);
       const pauseCount=(j.downtimeLog||[]).length;
       const adjCount=(j.adjustLog||[]).length;
       const totalDT=parseFloat((j.totalDowntimeMins||0).toFixed(1));
+      let expStatus = j.status;
+      if (j.status === 'Run') expStatus = j.paused ? 'Paused' : 'Run';
       data.push([rowNum,j.partno,j.pcs,j.lotno,
         j.l1+' mm.',j.l2+' mm.',j.stroke+' mm.',j.load+' N',
-        j.status==='Finished'||j.status==='Run'?'Run finished':j.status,
+        expStatus,
         j.speed,j.cycles,j.startdate,j.startH,j.startM,
         parseFloat(dd.total.toFixed(3)),dd.d,dd.h,dd.m,
         `${dd.d} Days ${dd.h} Hours ${dd.m} Minutes`,
         finStr,rem,
-        j.status==='Finished'?'Finished':'',
-        j.status==='Finished'?'Finished':'',
+        expStatus==='Finished'?'Finished':(j.paused?'Paused':''),
+        expStatus==='Finished'?'Finished':'',
         totalDT,pauseCount,adjCount
       ]);
     });
@@ -1869,12 +2133,15 @@ function buildExcel(rows,fname){
     [''],
     ['Machine','#','Customer','Part No.','Lot No.','Cycles','Start Date','Finish Date','Duration','Status','Total Downtime (min)','Pause Count','Adj Count']
   ];
+  let sumRowNum=0;
   allSorted.forEach(j=>{
-    const fin2=finishDt(j),dd=dhm(j);
+    sumRowNum++;
+    const fin2=typeof calcFinishWithPause==='function'?calcFinishWithPause(j):finishDt(j);
+    const dd=dhm(j);
     sum.push([
-      `M${j.machine}`,j.no,j.customer,j.partno,j.lotno,j.cycles,
+      `M${j.machine}`,sumRowNum,j.customer,j.partno,j.lotno,j.cycles,
       j.startdate,fin2?fmtDateUS(fin2):'',
-      `${dd.d}d ${dd.h}h ${dd.m}m`,j.status,
+      `${dd.d}d ${dd.h}h ${dd.m}m`,j.status==='Run'?(j.paused?'Paused':'Run'):j.status,
       parseFloat((j.totalDowntimeMins||0).toFixed(1)),
       (j.downtimeLog||[]).length,
       (j.adjustLog||[]).length
@@ -1940,7 +2207,6 @@ function loadConfig(){
   const saved = JSON.parse(localStorage.getItem('et_notify_cfg')||'{}');
   return Object.assign({}, NOTIFY_CONFIG, saved);
 }
-function saveConfig(cfg){localStorage.setItem('et_notify_cfg',JSON.stringify(cfg));}
 function loadRecipients(){return JSON.parse(localStorage.getItem('et_recipients')||'[]');}
 function saveRecipients(r){localStorage.setItem('et_recipients',JSON.stringify(r));}
 
@@ -1992,7 +2258,7 @@ function renderOverlapAlerts(){
           <div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Job #${a.no}</div>
           <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px">${a.customer}</div>
           <div style="font-size:11px;color:var(--text2)">${a.lotno}</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:6px">▶ ${a.startdate} ${pad(a.startH)}:${pad(a.startM)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px">▶ ${fmtDT(startDt(a))}</div>
           <div style="font-size:10px;color:var(--text3)">⏹ ${fmtDT(aFin)}</div>
           <div style="font-size:10px;color:var(--amber);margin-top:2px">⏱ ${aDHM.d}d ${aDHM.h}h ${aDHM.m}m</div>
         </div>
@@ -2001,7 +2267,7 @@ function renderOverlapAlerts(){
           <div style="font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Job #${b.no}</div>
           <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px">${b.customer}</div>
           <div style="font-size:11px;color:var(--text2)">${b.lotno}</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:6px">▶ ${b.startdate} ${pad(b.startH)}:${pad(b.startM)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px">▶ ${fmtDT(startDt(b))}</div>
           <div style="font-size:10px;color:var(--text3)">⏹ ${fmtDT(bFin)}</div>
           <div style="font-size:10px;color:var(--amber);margin-top:2px">⏱ ${bDHM.d}d ${bDHM.h}h ${bDHM.m}m</div>
         </div>
@@ -2032,11 +2298,6 @@ function checkOverlapBeforeSave(newJob, jobs){
   return conflicts;
 }
 
-// --- Email sending via EmailJS ---
-async function sendEmailNotification(subject, message, recipients){
-  return false; // Email notifications disabled
-}
-
 // --- Check upcoming jobs and send notification ---
 async function checkUpcomingNotifications(){
   // Email notifications disabled
@@ -2055,12 +2316,6 @@ function renderSettings(){
   const minSel = document.getElementById('cfg-minutes');
   if(minSel) minSel.value = String(cfg.notify_before_minutes||60);
   renderRecipients();
-}
-
-function saveEmailConfig(){ toast('Email notifications disabled'); }
-
-async function sendTestEmail(){
-  toast('Email notifications disabled','err');
 }
 
 function renderRecipients(){
@@ -2266,12 +2521,18 @@ async function doLogin(){
   const pass=document.getElementById('l-pass').value;
   const errEl=document.getElementById('l-err');
   if(!email||!pass){errEl.textContent='กรุณากรอก Email และ Password';errEl.style.display='block';return;}
+  if(!window._authFns || !window._auth){errEl.textContent='ระบบกำลังเชื่อมต่อ กรุณารอสักครู่...';errEl.style.display='block';return;}
   try{
     errEl.style.display='none';
+    const btn = document.querySelector('#login-form .btn-primary');
+    if(btn) btn.textContent = 'Signing In...';
     const {signInWithEmailAndPassword}=window._authFns;
     await signInWithEmailAndPassword(window._auth,email,pass);
+    if(btn) btn.textContent = 'Sign In';
   }catch(e){
-    const msgs={'auth/user-not-found':'ไม่พบบัญชีนี้','auth/wrong-password':'รหัสผ่านไม่ถูกต้อง','auth/invalid-email':'Email ไม่ถูกต้อง','auth/invalid-credential':'Email หรือ Password ไม่ถูกต้อง'};
+    const btn = document.querySelector('#login-form .btn-primary');
+    if(btn) btn.textContent = 'Sign In';
+    const msgs={'auth/user-not-found':'ไม่พบบัญชีนี้','auth/wrong-password':'รหัสผ่านไม่ถูกต้อง','auth/invalid-email':'Email ไม่ถูกต้อง','auth/invalid-credential':'Email หรือ Password ไม่ถูกต้อง','auth/invalid-login-credentials':'Email หรือ Password ไม่ถูกต้อง'};
     errEl.textContent=msgs[e.code]||e.message;
     errEl.style.display='block';
   }
@@ -2286,8 +2547,11 @@ async function doRegister(){
   if(!name||!email||!pass){errEl.textContent='กรุณากรอกข้อมูลให้ครบ';errEl.style.display='block';return;}
   if(pass!==pass2){errEl.textContent='Password ไม่ตรงกัน';errEl.style.display='block';return;}
   if(pass.length<6){errEl.textContent='Password ต้องมีอย่างน้อย 6 ตัวอักษร';errEl.style.display='block';return;}
+  if(!window._authFns || !window._auth){errEl.textContent='ระบบกำลังเชื่อมต่อ กรุณารอสักครู่...';errEl.style.display='block';return;}
   try{
     errEl.style.display='none';
+    const btn = document.querySelector('#register-form .btn-primary');
+    if(btn) btn.textContent = 'Registering...';
     const {createUserWithEmailAndPassword}=window._authFns;
     const cred=await createUserWithEmailAndPassword(window._auth,email,pass);
     const isDev=email.toLowerCase()===(window._devEmail||'nattapolbc2002@gmail.com').toLowerCase();
@@ -2298,8 +2562,11 @@ async function doRegister(){
       email,displayName:name,status,role,
       createdAt:new Date().toISOString()
     });
+    if(btn) btn.textContent = 'Register';
     // onAuthStateChanged will handle the redirect
   }catch(e){
+    const btn = document.querySelector('#register-form .btn-primary');
+    if(btn) btn.textContent = 'Register';
     const msgs={'auth/email-already-in-use':'Email นี้ถูกใช้งานแล้ว','auth/invalid-email':'Email ไม่ถูกต้อง','auth/weak-password':'Password ต้องมีอย่างน้อย 6 ตัวอักษร'};
     errEl.textContent=msgs[e.code]||e.message;
     errEl.style.display='block';
@@ -2695,24 +2962,6 @@ function calcJigInline(){
 }
 
 
-// Wire gotoPage for jig page
-var _origGotoPage3 = window.gotoPage;
-window.gotoPage = function(id){
-  if(id === 'jig'){
-    // Call original first to handle page switching
-    document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
-    document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active');});
-    var pg = document.getElementById('page-jig');
-    if(pg) pg.classList.add('active');
-    document.querySelectorAll('.nav-tab').forEach(function(t){
-      if(t.getAttribute('onclick') && t.getAttribute('onclick').indexOf("'jig'") >= 0) t.classList.add('active');
-    });
-    renderJigList();
-    calcJigPage();
-    return;
-  }
-  _origGotoPage3(id);
-};
 </script>
 </body>
 </html>
