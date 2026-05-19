@@ -477,6 +477,7 @@ tr:last-child td{border-bottom:none}
     <button class="nav-tab active" onclick="gotoPage('dashboard')">Dashboard</button>
     <button class="nav-tab" id="new-job-tab" onclick="gotoPage('input')">New Job</button>
     <button class="nav-tab" onclick="gotoPage('running')">Active Jobs</button>
+    <button class="nav-tab" onclick="gotoPage('camera')">📹 Live Camera</button>
     <button class="nav-tab" onclick="gotoPage('history')">History</button>
     <button class="nav-tab" onclick="gotoPage('export')">Export Excel</button>
     <button class="nav-tab" onclick="gotoPage('settings')">⚙ Notify</button>
@@ -634,6 +635,76 @@ tr:last-child td{border-bottom:none}
   <div id="planned-section">
     <div class="sec-divider">Planned</div>
     <div id="plan-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px"></div>
+  </div>
+</div>
+
+<!-- IP CAMERA PAGE -->
+<div class="page" id="page-camera">
+  <div class="sec-hdr">
+    <div><p class="sec-title">IP Camera Monitoring</p><p class="sec-sub">Auto Cycle Tracking via MJPEG Stream & Motion Detection</p></div>
+  </div>
+  <div class="g2">
+    <!-- Machine 1 -->
+    <div class="card" style="display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <p class="card-title" style="margin:0; border:none; padding:0;">Machine No. 1</p>
+        <div id="ip-machine-status-1"><span class="badge b-stop">STOPPED</span></div>
+      </div>
+      <div class="form-grid g2" style="margin-bottom: 10px; align-items: end;">
+        <div class="fl" style="grid-column: span 2;">
+          <input type="text" id="ip-cam-url-1" placeholder="http://192.168.1.45:8080/video">
+        </div>
+        <div class="btn-row" style="margin:0; display:flex; gap:5px; grid-column: span 2;">
+          <button class="btn btn-success" style="flex:1; justify-content:center;" onclick="connectIpCamera(1)">Connect</button>
+          <button class="btn btn-danger" style="flex:1; justify-content:center;" onclick="disconnectIpCamera(1)">Disconnect</button>
+        </div>
+      </div>
+      <div style="margin-bottom:8px; font-size:12px; color:var(--text3);" id="ip-cam-status-1">Waiting for connection...</div>
+      
+      <div style="position:relative; width:100%; aspect-ratio:4/3; background:var(--bg); border-radius:8px; overflow:hidden; border:1px solid var(--border);">
+        <img id="ip-cam-img-1" crossorigin="anonymous" style="position:absolute; width:100%; height:100%; object-fit:cover; display:none;">
+        <canvas id="ip-cam-canvas-1" style="position:absolute; width:100%; height:100%; z-index:10; pointer-events:none;"></canvas>
+        <div id="ip-cam-placeholder-1" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--text3); font-size:13px;">No Signal</div>
+      </div>
+      <div class="metrics" style="margin-top:10px; grid-template-columns: 1fr;">
+         <div class="mc mc-blue" style="cursor:default;"><div class="mc-label">LIVE CYCLES</div><div class="mc-val blue" id="ip-cycles-1">0</div></div>
+      </div>
+      <div class="fl" style="margin-top:10px;">
+         <label>Motion Sensitivity: <span id="ip-sens-val-1">50</span>%</label>
+         <input type="range" id="ip-sens-1" min="1" max="100" value="50" oninput="document.getElementById('ip-sens-val-1').innerText=this.value" style="padding:0; height:4px; accent-color:var(--accent);">
+      </div>
+    </div>
+    
+    <!-- Machine 2 -->
+    <div class="card" style="display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <p class="card-title" style="margin:0; border:none; padding:0;">Machine No. 2</p>
+        <div id="ip-machine-status-2"><span class="badge b-stop">STOPPED</span></div>
+      </div>
+      <div class="form-grid g2" style="margin-bottom: 10px; align-items: end;">
+        <div class="fl" style="grid-column: span 2;">
+          <input type="text" id="ip-cam-url-2" placeholder="http://192.168.1.100:81/stream">
+        </div>
+        <div class="btn-row" style="margin:0; display:flex; gap:5px; grid-column: span 2;">
+          <button class="btn btn-success" style="flex:1; justify-content:center;" onclick="connectIpCamera(2)">Connect</button>
+          <button class="btn btn-danger" style="flex:1; justify-content:center;" onclick="disconnectIpCamera(2)">Disconnect</button>
+        </div>
+      </div>
+      <div style="margin-bottom:8px; font-size:12px; color:var(--text3);" id="ip-cam-status-2">Waiting for connection...</div>
+      
+      <div style="position:relative; width:100%; aspect-ratio:4/3; background:var(--bg); border-radius:8px; overflow:hidden; border:1px solid var(--border);">
+        <img id="ip-cam-img-2" crossorigin="anonymous" style="position:absolute; width:100%; height:100%; object-fit:cover; display:none;">
+        <canvas id="ip-cam-canvas-2" style="position:absolute; width:100%; height:100%; z-index:10; pointer-events:none;"></canvas>
+        <div id="ip-cam-placeholder-2" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--text3); font-size:13px;">No Signal</div>
+      </div>
+      <div class="metrics" style="margin-top:10px; grid-template-columns: 1fr;">
+         <div class="mc mc-blue" style="cursor:default;"><div class="mc-label">LIVE CYCLES</div><div class="mc-val blue" id="ip-cycles-2">0</div></div>
+      </div>
+      <div class="fl" style="margin-top:10px;">
+         <label>Motion Sensitivity: <span id="ip-sens-val-2">50</span>%</label>
+         <input type="range" id="ip-sens-2" min="1" max="100" value="50" oninput="document.getElementById('ip-sens-val-2').innerText=this.value" style="padding:0; height:4px; accent-color:var(--accent);">
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1140,7 +1211,7 @@ function gotoPage(id){
     return;
   }
 
-  const map={dashboard:0,input:1,running:2,history:3,export:4,settings:5,jig:6,admin:7};
+  const map={dashboard:0,input:1,running:2,camera:3,history:4,export:5,settings:6,jig:7,admin:8};
   if(map[id] !== undefined && document.querySelectorAll('.nav-tab')[map[id]]) {
     document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
   }
@@ -3102,6 +3173,179 @@ function calcJigInline(){
   }
 }
 
+// ============================================================
+// IP CAMERA & AUTO CYCLE TRACKING VIA MOTION DETECTION
+// ============================================================
+const _origGotoPageCamera = window.gotoPage;
+window.gotoPage = function(id) {
+  _origGotoPageCamera(id);
+  if (id === 'camera') {
+    const tabs = document.querySelectorAll('.nav-tab');
+    tabs.forEach(t => {
+      if (t.innerText.includes('Live Camera') || t.innerText.includes('📹')) t.classList.add('active');
+    });
+    const savedUrl1 = localStorage.getItem('et_ipcam_url_1');
+    if(savedUrl1 && !document.getElementById('ip-cam-url-1').value) document.getElementById('ip-cam-url-1').value = savedUrl1;
+    const savedUrl2 = localStorage.getItem('et_ipcam_url_2');
+    if(savedUrl2 && !document.getElementById('ip-cam-url-2').value) document.getElementById('ip-cam-url-2').value = savedUrl2;
+  }
+};
+
+window._ipCams = {};
+function initIpCam(id) {
+    const procCanvas = document.createElement('canvas');
+    procCanvas.width = 160;
+    procCanvas.height = 120;
+    window._ipCams[id] = {
+        raf: null,
+        prevGray: null,
+        cycles: 0,
+        isHigh: false,
+        lastMotion: 0,
+        procCanvas: procCanvas,
+        procCtx: procCanvas.getContext('2d', {willReadFrequently: true})
+    };
+}
+initIpCam(1);
+initIpCam(2);
+
+function connectIpCamera(mId) {
+    const url = document.getElementById(`ip-cam-url-${mId}`).value.trim();
+    if(!url) { toast(`Please enter IP Camera URL for Machine ${mId}`, 'err'); return; }
+    
+    localStorage.setItem(`et_ipcam_url_${mId}`, url);
+    disconnectIpCamera(mId);
+    
+    const img = document.getElementById(`ip-cam-img-${mId}`);
+    const status = document.getElementById(`ip-cam-status-${mId}`);
+    const placeholder = document.getElementById(`ip-cam-placeholder-${mId}`);
+    
+    status.textContent = 'Connecting...';
+    status.style.color = 'var(--amber)';
+    
+    img.onload = () => {
+        status.textContent = 'Connected';
+        status.style.color = 'var(--green)';
+        img.style.display = 'block';
+        placeholder.style.display = 'none';
+        window._ipCams[mId].prevGray = null; // Reset diff buffer
+        processIpCamFrame(mId);
+    };
+    
+    img.onerror = () => {
+        status.textContent = 'Error: Connection failed or Stream CORS blocked.';
+        status.style.color = 'var(--red)';
+        img.style.display = 'none';
+        placeholder.style.display = 'flex';
+    };
+    
+    img.src = url; 
+}
+
+function disconnectIpCamera(mId) {
+    const img = document.getElementById(`ip-cam-img-${mId}`);
+    img.src = '';
+    img.style.display = 'none';
+    document.getElementById(`ip-cam-placeholder-${mId}`).style.display = 'flex';
+    document.getElementById(`ip-cam-status-${mId}`).textContent = 'Disconnected';
+    document.getElementById(`ip-cam-status-${mId}`).style.color = 'var(--text3)';
+    
+    if (window._ipCams[mId] && window._ipCams[mId].raf) {
+        cancelAnimationFrame(window._ipCams[mId].raf);
+        window._ipCams[mId].raf = null;
+    }
+    
+    const outC = document.getElementById(`ip-cam-canvas-${mId}`);
+    outC.getContext('2d').clearRect(0,0,outC.width,outC.height);
+    setIpMachineStatus(mId, 'STOPPED');
+}
+
+function setIpMachineStatus(mId, state) {
+    const el = document.getElementById(`ip-machine-status-${mId}`);
+    if (!el) return;
+    el.innerHTML = state === 'RUNNING' ? '<span class="badge b-run">RUNNING</span>' : '<span class="badge b-stop">STOPPED</span>';
+}
+
+function processIpCamFrame(mId) {
+    const img = document.getElementById(`ip-cam-img-${mId}`);
+    if (!img.complete || img.naturalHeight === 0 || img.style.display === 'none') return;
+    
+    const outC = document.getElementById(`ip-cam-canvas-${mId}`);
+    const outCtx = outC.getContext('2d');
+    const cam = window._ipCams[mId];
+    if (!cam) return; // Guard against race conditions
+    const pC = cam.procCanvas;
+    const pCtx = cam.procCtx;
+    
+    if (outC.width !== img.clientWidth) {
+         outC.width = img.clientWidth;
+         outC.height = img.clientHeight;
+    }
+
+    try {
+        pCtx.drawImage(img, 0, 0, pC.width, pC.height);
+        const currFrame = pCtx.getImageData(0, 0, pC.width, pC.height);
+        const currData = currFrame.data;
+        
+        const currGray = new Uint8ClampedArray(pC.width * pC.height);
+        for (let i = 0, j = 0; i < currData.length; i += 4, j++) {
+            currGray[j] = currData[i]*0.3 + currData[i+1]*0.59 + currData[i+2]*0.11;
+        }
+
+        if (!cam.prevGray) {
+            cam.prevGray = currGray;
+            cam.raf = requestAnimationFrame(() => processIpCamFrame(mId));
+            return;
+        }
+
+        let diffCount = 0;
+        const diffThresh = 25; // Grayscale absolute difference threshold (0-255)
+        
+        for (let i = 0; i < currGray.length; i++) {
+            if (Math.abs(currGray[i] - cam.prevGray[i]) > diffThresh) {
+                diffCount++;
+            }
+            cam.prevGray[i] = currGray[i]; // Update previous inline
+        }
+
+        const sens = parseInt(document.getElementById(`ip-sens-${mId}`).value);
+        const pctReq = ((100 - sens) * 0.15) + 1; // Require 1% to 16% pixels changed
+        const minDiffPixels = (pC.width * pC.height) * (pctReq / 100);
+        const now = Date.now();
+        const isMotionNow = diffCount > minDiffPixels;
+
+        outCtx.clearRect(0,0,outC.width,outC.height);
+        if (isMotionNow) {
+            outCtx.fillStyle = 'rgba(34, 197, 94, 0.2)'; 
+            outCtx.fillRect(0,0,outC.width,outC.height);
+            outCtx.strokeStyle = 'rgba(34, 197, 94, 0.8)'; 
+            outCtx.lineWidth = 4; 
+            outCtx.strokeRect(0,0,outC.width,outC.height);
+            
+            cam.lastMotion = now;
+            if (!cam.isHigh) { 
+                cam.isHigh = true; 
+                setIpMachineStatus(mId, 'RUNNING'); 
+            }
+        } else {
+            if (cam.isHigh && (now - cam.lastMotion > 200)) {
+                cam.isHigh = false; 
+                cam.cycles++;
+                document.getElementById(`ip-cycles-${mId}`).innerText = cam.cycles;
+            }
+            if (now - cam.lastMotion > 2000) {
+                setIpMachineStatus(mId, 'STOPPED');
+            }
+        }
+    } catch (e) {
+        document.getElementById(`ip-cam-status-${mId}`).textContent = 'CORS Error: Cannot extract pixel data from stream.';
+        document.getElementById(`ip-cam-status-${mId}`).style.color = 'var(--red)';
+        disconnectIpCamera(mId);
+        return;
+    }
+
+    cam.raf = requestAnimationFrame(() => processIpCamFrame(mId));
+}
 
 </script>
 </body>
