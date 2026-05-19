@@ -190,7 +190,13 @@ window._authFns = { createUserWithEmailAndPassword, signInWithEmailAndPassword, 
 try { emailjs.init({publicKey: 'i0iMABg2H8qtYF12R'}); } catch(e) {}
 window._ready = false;
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => { window._ready = true; }, 800);
+  setTimeout(() => { 
+    window._ready = true; 
+    const savedUrl1 = localStorage.getItem('et_ipcam_url_1');
+    if(savedUrl1 && document.getElementById('ip-cam-url-1')) document.getElementById('ip-cam-url-1').value = savedUrl1;
+    const savedUrl2 = localStorage.getItem('et_ipcam_url_2');
+    if(savedUrl2 && document.getElementById('ip-cam-url-2')) document.getElementById('ip-cam-url-2').value = savedUrl2;
+  }, 800);
   
   const drawMarks = function(dObj, dStr, fp, dayElem, machineId) {
     if (!window._jobs) return;
@@ -477,7 +483,6 @@ tr:last-child td{border-bottom:none}
     <button class="nav-tab active" onclick="gotoPage('dashboard')">Dashboard</button>
     <button class="nav-tab" id="new-job-tab" onclick="gotoPage('input')">New Job</button>
     <button class="nav-tab" onclick="gotoPage('running')">Active Jobs</button>
-    <button class="nav-tab" onclick="gotoPage('camera')">📹 Live Camera</button>
     <button class="nav-tab" onclick="gotoPage('history')">History</button>
     <button class="nav-tab" onclick="gotoPage('export')">Export Excel</button>
     <button class="nav-tab" onclick="gotoPage('settings')">⚙ Notify</button>
@@ -513,9 +518,84 @@ tr:last-child td{border-bottom:none}
     <div id="dash-soon"></div>
   </div>
   <div class="g2">
-    <div class="card"><p class="card-title">Active Jobs — Running</p><div id="dash-running"></div></div>
-    <div class="card"><p class="card-title">Planned Jobs</p><div id="dash-planned"></div></div>
+  <div id="dash-col-m1" style="display:flex; flex-direction:column; gap:12px;">
+    <div class="card" style="display:flex; flex-direction:column; padding: 1rem;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <p class="card-title" style="margin:0; border:none; padding:0;">Machine No. 1 - LIVE CAM</p>
+        <div id="ip-machine-status-1"><span class="badge b-stop">STOPPED</span></div>
+      </div>
+      <div class="form-grid g2" style="margin-bottom: 8px; align-items: end;">
+        <div class="fl" style="grid-column: span 2;">
+          <input type="text" id="ip-cam-url-1" placeholder="http://192.168.1.45:8080/video" style="padding: 6px 10px;">
+        </div>
+        <div class="btn-row" style="margin:0; display:flex; gap:5px; grid-column: span 2;">
+          <button class="btn btn-success btn-sm" style="flex:1; justify-content:center;" onclick="connectIpCamera(1)">Connect</button>
+          <button class="btn btn-danger btn-sm" style="flex:1; justify-content:center;" onclick="disconnectIpCamera(1)">Disconnect</button>
+        </div>
+      </div>
+      <div style="margin-bottom:6px; font-size:11px; color:var(--text3);" id="ip-cam-status-1">Waiting for connection...</div>
+      <div style="position:relative; width:100%; aspect-ratio:4/3; background:var(--bg); border-radius:8px; overflow:hidden; border:1px solid var(--border);">
+        <img id="ip-cam-img-1" crossorigin="anonymous" style="position:absolute; width:100%; height:100%; object-fit:cover; display:none;">
+        <canvas id="ip-cam-canvas-1" style="position:absolute; width:100%; height:100%; z-index:10; pointer-events:none;"></canvas>
+        <div id="ip-cam-placeholder-1" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--text3); font-size:12px;">No Signal</div>
+      </div>
+      <div class="metrics" style="margin-top:8px; grid-template-columns: 1fr; margin-bottom: 0;">
+         <div class="mc mc-blue" style="cursor:default; padding: 0.5rem;"><div class="mc-label">LIVE CYCLES</div><div class="mc-val blue" id="ip-cycles-1" style="font-size: 18px;">0</div></div>
+      </div>
+      <div class="fl" style="margin-top:8px;">
+         <label style="font-size: 10px;">Motion Sensitivity: <span id="ip-sens-val-1">50</span>%</label>
+         <input type="range" id="ip-sens-1" min="1" max="100" value="50" oninput="document.getElementById('ip-sens-val-1').innerText=this.value" style="padding:0; height:4px; accent-color:var(--accent);">
+      </div>
+      <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+         <span style="font-size:10px; color:var(--text3); font-weight:500; text-transform:uppercase; letter-spacing:0.05em;">Auto-Sync Database</span>
+         <button id="cam-link-btn-1" class="btn btn-ghost btn-sm" onclick="toggleCameraLink(1)">❌ Unlinked</button>
+      </div>
+    </div>
+    <div class="card" style="padding: 1rem;">
+      <p class="card-title">Machine 1 — Queue</p>
+      <div id="dash-jobs-m1"></div>
+    </div>
   </div>
+
+  <div id="dash-col-m2" style="display:flex; flex-direction:column; gap:12px;">
+    <div class="card" style="display:flex; flex-direction:column; padding: 1rem;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <p class="card-title" style="margin:0; border:none; padding:0;">Machine No. 2 - LIVE CAM</p>
+        <div id="ip-machine-status-2"><span class="badge b-stop">STOPPED</span></div>
+      </div>
+      <div class="form-grid g2" style="margin-bottom: 8px; align-items: end;">
+        <div class="fl" style="grid-column: span 2;">
+          <input type="text" id="ip-cam-url-2" placeholder="http://192.168.1.100:81/stream" style="padding: 6px 10px;">
+        </div>
+        <div class="btn-row" style="margin:0; display:flex; gap:5px; grid-column: span 2;">
+          <button class="btn btn-success btn-sm" style="flex:1; justify-content:center;" onclick="connectIpCamera(2)">Connect</button>
+          <button class="btn btn-danger btn-sm" style="flex:1; justify-content:center;" onclick="disconnectIpCamera(2)">Disconnect</button>
+        </div>
+      </div>
+      <div style="margin-bottom:6px; font-size:11px; color:var(--text3);" id="ip-cam-status-2">Waiting for connection...</div>
+      <div style="position:relative; width:100%; aspect-ratio:4/3; background:var(--bg); border-radius:8px; overflow:hidden; border:1px solid var(--border);">
+        <img id="ip-cam-img-2" crossorigin="anonymous" style="position:absolute; width:100%; height:100%; object-fit:cover; display:none;">
+        <canvas id="ip-cam-canvas-2" style="position:absolute; width:100%; height:100%; z-index:10; pointer-events:none;"></canvas>
+        <div id="ip-cam-placeholder-2" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--text3); font-size:12px;">No Signal</div>
+      </div>
+      <div class="metrics" style="margin-top:8px; grid-template-columns: 1fr; margin-bottom: 0;">
+         <div class="mc mc-blue" style="cursor:default; padding: 0.5rem;"><div class="mc-label">LIVE CYCLES</div><div class="mc-val blue" id="ip-cycles-2" style="font-size: 18px;">0</div></div>
+      </div>
+      <div class="fl" style="margin-top:8px;">
+         <label style="font-size: 10px;">Motion Sensitivity: <span id="ip-sens-val-2">50</span>%</label>
+         <input type="range" id="ip-sens-2" min="1" max="100" value="50" oninput="document.getElementById('ip-sens-val-2').innerText=this.value" style="padding:0; height:4px; accent-color:var(--accent);">
+      </div>
+      <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+         <span style="font-size:10px; color:var(--text3); font-weight:500; text-transform:uppercase; letter-spacing:0.05em;">Auto-Sync Database</span>
+         <button id="cam-link-btn-2" class="btn btn-ghost btn-sm" onclick="toggleCameraLink(2)">❌ Unlinked</button>
+      </div>
+    </div>
+    <div class="card" style="padding: 1rem;">
+      <p class="card-title">Machine 2 — Queue</p>
+      <div id="dash-jobs-m2"></div>
+    </div>
+  </div>
+</div>
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:1rem">
       <p class="card-title" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">Monthly Jobs Duration & Start Times</p>
@@ -673,6 +753,10 @@ tr:last-child td{border-bottom:none}
          <label>Motion Sensitivity: <span id="ip-sens-val-1">50</span>%</label>
          <input type="range" id="ip-sens-1" min="1" max="100" value="50" oninput="document.getElementById('ip-sens-val-1').innerText=this.value" style="padding:0; height:4px; accent-color:var(--accent);">
       </div>
+      <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+         <span style="font-size:11px; color:var(--text3); font-weight:500; text-transform:uppercase; letter-spacing:0.05em;">Auto-Sync Database</span>
+         <button id="cam-link-btn-1" class="btn btn-ghost btn-sm" onclick="toggleCameraLink(1)">❌ Unlinked</button>
+      </div>
     </div>
     
     <!-- Machine 2 -->
@@ -703,6 +787,10 @@ tr:last-child td{border-bottom:none}
       <div class="fl" style="margin-top:10px;">
          <label>Motion Sensitivity: <span id="ip-sens-val-2">50</span>%</label>
          <input type="range" id="ip-sens-2" min="1" max="100" value="50" oninput="document.getElementById('ip-sens-val-2').innerText=this.value" style="padding:0; height:4px; accent-color:var(--accent);">
+      </div>
+      <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+         <span style="font-size:11px; color:var(--text3); font-weight:500; text-transform:uppercase; letter-spacing:0.05em;">Auto-Sync Database</span>
+         <button id="cam-link-btn-2" class="btn btn-ghost btn-sm" onclick="toggleCameraLink(2)">❌ Unlinked</button>
       </div>
     </div>
   </div>
@@ -1211,7 +1299,7 @@ function gotoPage(id){
     return;
   }
 
-  const map={dashboard:0,input:1,running:2,camera:3,history:4,export:5,settings:6,jig:7,admin:8};
+  const map={dashboard:0,input:1,running:2,history:3,export:4,settings:5,jig:6,admin:7};
   if(map[id] !== undefined && document.querySelectorAll('.nav-tab')[map[id]]) {
     document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
   }
@@ -1394,52 +1482,89 @@ function renderDashboard(){
     return ms>0&&ms<=86400000;
   });
 
-  document.getElementById('dash-running').innerHTML=runSorted.length?`<div style="max-height:260px;overflow-y:auto;padding-right:4px">`+runSorted.map(j=>{
-    const fin2=typeof calcFinishWithPause==='function'?calcFinishWithPause(j):finishDt(j);
-    const elMins=typeof calcElapsedMins==='function'?calcElapsedMins(j):Math.max(0,(now2-startDt(j))/60000);
-    const tm=j.cycles/(j.speed||500),pct=Math.min(100,Math.round(elMins/tm*100));
-    const elCycles=Math.min(j.cycles,Math.round(elMins*(j.speed||500)));
-    const rem=fin2?Math.max(0,(fin2-now2)/60000):0;
-    const rd=Math.floor(rem/1440),rh=Math.floor((rem%1440)/60),rm2=Math.round(rem%60);
-    const cid='dcd-'+j._id.replace(/[^a-z0-9]/gi,'');
-    return`<div style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-        <span style="font-size:13px;font-weight:600;font-family:var(--mono);color:var(--accent)">${fmtJobNo(j)}</span>
-        <span style="font-size:11px;font-weight:500">${j.customer} / ${j.lotno}</span>
-      </div>
-      <div style="font-size:10px;color:var(--text2);margin-bottom:3px;font-family:var(--mono)">${j.partno||'—'}</div>
-      <div class="prog-bg" style="margin-bottom:3px"><div class="prog-fill ${!j.paused ? 'active-run' : ''}" id="${cid}-bar" style="width:${pct}%;background:${j.paused?'var(--amber)':'var(--green)'}"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:2px">
-        <span id="${cid}-cyc">${elCycles.toLocaleString()} / ${j.cycles.toLocaleString()} cycles (${pct}%)</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:10px;">
-        <span style="color:var(--text3)">ETA: ${fmtDT(fin2)}</span>
-        <span class="countdown" id="${cid}-rem" style="color:${j.paused?'var(--amber)':'var(--teal)'}">${j.paused?'PAUSED':`${rd}d ${rh}h ${rm2}m`}</span>
-      </div>
-    </div>`;}).join('')+`</div>`:'<div class="empty">No active jobs</div>';
-  // Sort planned: by startdate ASC (soonest first), group by machine
-  const planByM={'1':[],'2':[]};
-  planSorted.forEach(j=>{const m=j.machine||'1';if(!planByM[m])planByM[m]=[];planByM[m].push(j);});
-  // Sort each machine group by startdate ASC
-  Object.keys(planByM).forEach(m=>planByM[m].sort((a,b)=>startDt(a)-startDt(b)));
-  
-  let planHtml='';
-  Object.keys(planByM).sort().forEach(m=>{
-    const rows=planByM[m];
-    if(!rows.length)return;
-    planHtml+=`<div style="font-size:10px;font-weight:500;color:var(--accent);letter-spacing:.07em;text-transform:uppercase;padding:6px 0 4px;border-bottom:1px solid var(--border)">Machine No.${m}</div>`;
-    planHtml+=rows.map(j=>{
-      const ms=startDt(j).getTime()-now2.getTime();
-      const isNeg=ms<0;
-      const absMins=Math.abs(ms)/60000;
-      const dd2=Math.floor(absMins/1440),dh2=Math.floor((absMins%1440)/60),dm2=Math.round(absMins%60);
-      const countdownStr=isNeg?'เริ่มแล้ว':`${dd2}d ${dh2}h ${dm2}m`;
-      const color=ms<86400000&&ms>0?'color:var(--red);font-weight:500':'color:var(--text3)';
-      return`<tr><td style="font-family:var(--mono);color:var(--accent)">${fmtJobNo(j)}</td><td>${j.partno||'—'}</td><td>${j.customer}</td><td>${j.lotno}</td><td style="font-family:var(--mono);font-size:10px">${fmtDT(startDt(j))}</td><td style="${color}">${countdownStr}</td></tr>`;
-    }).join('');
-  });
+  const col1 = document.getElementById('dash-col-m1');
+  const col2 = document.getElementById('dash-col-m2');
+  if(col1) col1.style.display = (mf==='all'||mf==='1') ? 'flex' : 'none';
+  if(col2) col2.style.display = (mf==='all'||mf==='2') ? 'flex' : 'none';
 
-  document.getElementById('dash-planned').innerHTML=planSorted.length?`<div style="max-height:260px;overflow-y:auto"><table style="width:100%;font-size:12px"><thead><tr><th>Job ID</th><th>Part No.</th><th>Customer</th><th>Lot</th><th>Start</th><th>เริ่มใน</th></tr></thead><tbody>${planHtml}</tbody></table></div>`:'<div class="empty">No planned jobs</div>';
+function renderDashMachineJobs(machineId) {
+    const mJobs = all.filter(j => String(j.machine) === String(machineId) && (j.status === 'Run' || j.status === 'Plan'));
+    mJobs.sort((a,b) => {
+        const getPrio = (j) => {
+            if (j.status === 'Run' && !j.paused) return 1;
+            if (j.status === 'Run' && j.paused) return 2;
+            return 3;
+        };
+        const pA = getPrio(a), pB = getPrio(b);
+        if (pA !== pB) return pA - pB;
+        const tA = startDt(a).getTime();
+        const tB = startDt(b).getTime();
+        return tA - tB;
+    });
+    if (!mJobs.length) return '<div class="empty" style="padding:2rem 0">No active or planned jobs</div>';
+    return `<div style="max-height: 480px; overflow-y: auto; padding-right: 4px;">` + mJobs.map(j => {
+        const isRun = j.status === 'Run' && !j.paused;
+        const isPaused = j.status === 'Run' && j.paused;
+        const isPlan = j.status === 'Plan';
+        let bg = 'var(--bg3)', border = '1px solid var(--border)', badge = sBadgeJ(j);
+        if (isRun) {
+            bg = 'linear-gradient(135deg, var(--bg2) 60%, rgba(34,197,94,.08))';
+            border = '1px solid rgba(34,197,94,.4)';
+        } else if (isPaused) {
+            bg = 'linear-gradient(135deg, var(--bg2) 60%, rgba(245,158,11,.08))';
+            border = '1px solid rgba(245,158,11,.4)';
+        }
+        const fin2 = typeof calcFinishWithPause==='function'?calcFinishWithPause(j):finishDt(j);
+        const elMins = typeof calcElapsedMins==='function'?calcElapsedMins(j):Math.max(0,(now2-startDt(j))/60000);
+        const tm = j.cycles/(j.speed||500);
+        const pct = Math.min(100, Math.round(elMins/tm*100)) || 0;
+        const elCycles = Math.min(j.cycles, Math.round(elMins*(j.speed||500))) || 0;
+        const rem = fin2 ? Math.max(0,(fin2-now2)/60000) : 0;
+        const rd = Math.floor(rem/1440), rh = Math.floor((rem%1440)/60), rm2 = Math.round(rem%60);
+        const cid = 'dcd-'+j._id.replace(/[^a-z0-9]/gi,'');
+        
+        let progressHtml = '';
+        if (isRun || isPaused) {
+            progressHtml = `
+            <div class="prog-bg" style="margin-bottom:4px; height:4px;">
+              <div class="prog-fill ${!j.paused ? 'active-run' : ''}" id="${cid}-bar" style="width:${pct}%;background:${j.paused?'var(--amber)':'var(--green)'}"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:2px">
+              <span id="${cid}-cyc">${elCycles.toLocaleString()} / ${j.cycles.toLocaleString()} cyc (${pct}%)</span>
+              <span class="countdown" id="${cid}-rem" style="color:${j.paused?'var(--amber)':'var(--teal)'}">${j.paused?'PAUSED':`${rd}d ${rh}h ${rm2}m`}</span>
+            </div>`;
+        } else {
+            const ms = startDt(j).getTime() - now2.getTime();
+            const isNeg = ms < 0;
+            const absMins = Math.abs(ms)/60000;
+            const dd2 = Math.floor(absMins/1440), dh2 = Math.floor((absMins%1440)/60), dm2 = Math.round(absMins%60);
+            const countdownStr = isNeg ? 'เริ่มแล้ว' : `เริ่มใน ${dd2}d ${dh2}h ${dm2}m`;
+            progressHtml = `
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">
+              <span>Start: ${fmtDT(startDt(j))}</span>
+              <span style="${ms<86400000&&ms>0?'color:var(--red);font-weight:500':''}">${countdownStr}</span>
+            </div>`;
+        }
+        return `<div style="background:${bg}; border:${border}; border-radius:8px; padding:8px 10px; margin-bottom:8px; position:relative; overflow:hidden;">
+          ${isRun ? `<div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--green),var(--teal));animation:blink 2s infinite"></div>` : ''}
+          ${isPaused ? `<div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--amber)"></div>` : ''}
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <div>
+              <span style="font-size:12px;font-weight:600;font-family:var(--mono);color:var(--accent)">${fmtJobNo(j)}</span>
+              <div style="font-size:11px;font-weight:500;color:var(--text);margin-top:1px">${j.customer} / ${j.lotno}</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="padding: 2px 8px; font-size: 10px;" onclick="openDetail('${j._id}')">Detail</button>
+          </div>
+          <div style="font-size:10px;color:var(--text2);margin-bottom:4px;font-family:var(--mono)">Part: ${j.partno||'—'}</div>
+          ${progressHtml}
+        </div>`;
+    }).join('') + `</div>`;
+}
+
+  const m1El = document.getElementById('dash-jobs-m1');
+  if(m1El) m1El.innerHTML = renderDashMachineJobs('1');
+  const m2El = document.getElementById('dash-jobs-m2');
+  if(m2El) m2El.innerHTML = renderDashMachineJobs('2');
   // Starting soon card
   const soonCard=document.getElementById('dash-soon-card');
   const soonEl=document.getElementById('dash-soon');
@@ -3176,21 +3301,6 @@ function calcJigInline(){
 // ============================================================
 // IP CAMERA & AUTO CYCLE TRACKING VIA MOTION DETECTION
 // ============================================================
-const _origGotoPageCamera = window.gotoPage;
-window.gotoPage = function(id) {
-  _origGotoPageCamera(id);
-  if (id === 'camera') {
-    const tabs = document.querySelectorAll('.nav-tab');
-    tabs.forEach(t => {
-      if (t.innerText.includes('Live Camera') || t.innerText.includes('📹')) t.classList.add('active');
-    });
-    const savedUrl1 = localStorage.getItem('et_ipcam_url_1');
-    if(savedUrl1 && !document.getElementById('ip-cam-url-1').value) document.getElementById('ip-cam-url-1').value = savedUrl1;
-    const savedUrl2 = localStorage.getItem('et_ipcam_url_2');
-    if(savedUrl2 && !document.getElementById('ip-cam-url-2').value) document.getElementById('ip-cam-url-2').value = savedUrl2;
-  }
-};
-
 window._ipCams = {};
 function initIpCam(id) {
     const procCanvas = document.createElement('canvas');
@@ -3203,11 +3313,103 @@ function initIpCam(id) {
         isHigh: false,
         lastMotion: 0,
         procCanvas: procCanvas,
-        procCtx: procCanvas.getContext('2d', {willReadFrequently: true})
+        procCtx: procCanvas.getContext('2d', {willReadFrequently: true}),
+        lastReportedState: 'STOPPED'
     };
 }
 initIpCam(1);
 initIpCam(2);
+
+window.isCameraLinked = { 1: false, 2: false };
+window._camCooldowns = { 1: 0, 2: 0 };
+
+function toggleCameraLink(mId) {
+    if (window._isGuest || !window._currentUser) {
+        toast('Sign In required to link camera to database', 'err');
+        return;
+    }
+    
+    window.isCameraLinked[mId] = !window.isCameraLinked[mId];
+    const btn = document.getElementById(`cam-link-btn-${mId}`);
+    
+    if (window.isCameraLinked[mId]) {
+        btn.innerHTML = '🔗 Linked';
+        btn.className = 'btn btn-success btn-sm';
+        toast(`Camera ${mId} Auto-Sync Enabled`, 'ok');
+    } else {
+        btn.innerHTML = '❌ Unlinked';
+        btn.className = 'btn btn-ghost btn-sm';
+        toast(`Camera ${mId} Auto-Sync Disabled`, 'ok');
+    }
+}
+
+function handleCameraStateChange(mId, newState) {
+    if (!window.isCameraLinked[mId]) return;
+    
+    const now = Date.now();
+    // 5-second debounce/cooldown to prevent rapid DB spam
+    if (now - window._camCooldowns[mId] < 5000) return;
+    
+    if (newState === 'STOPPED') {
+        const job = (window._jobs || []).find(j => String(j.machine) === String(mId) && j.status === 'Run' && !j.paused);
+        if (job) {
+            window._camCooldowns[mId] = now;
+            autoPauseJob(job._id);
+        }
+    } else if (newState === 'RUNNING') {
+        const job = (window._jobs || []).find(j => String(j.machine) === String(mId) && j.status === 'Run' && j.paused);
+        if (job) {
+            window._camCooldowns[mId] = now;
+            autoResumeJob(job._id);
+        }
+    }
+}
+
+async function autoPauseJob(fid) {
+    const j = (window._jobs || []).find(x => x._id === fid);
+    if (!j) return;
+    const now = Date.now();
+    const dtLog = j.downtimeLog || [];
+    dtLog.push({ pausedAt: now, resumedAt: null, reason: 'Auto-Pause by Camera', note: '' });
+    
+    try {
+        await window._fns.updateDoc(window._fns.doc(window._db, 'jobs', fid), {
+            paused: true,
+            pausedAt: now,
+            pauseReason: 'Auto-Pause by Camera',
+            downtimeLog: dtLog
+        });
+        toast(`Auto-Paused Job ${fmtJobNo(j)}`, 'ok');
+    } catch (e) {
+        console.error('Auto-Pause Error:', e);
+    }
+}
+
+async function autoResumeJob(fid) {
+    const j = (window._jobs || []).find(x => x._id === fid);
+    if (!j || !j.paused) return;
+    const now = Date.now();
+    const pausedAt = j.pausedAt || now;
+    const downtimeMins = (now - pausedAt) / 60000;
+    const totalDowntimeMins = (j.totalDowntimeMins || 0) + downtimeMins;
+    
+    const dtLog = (j.downtimeLog || []).map((e, i, arr) => 
+        i === arr.length - 1 ? { ...e, resumedAt: now, durationMins: Math.round(downtimeMins) } : e
+    );
+    
+    try {
+        await window._fns.updateDoc(window._fns.doc(window._db, 'jobs', fid), {
+            paused: false,
+            pausedAt: null,
+            pauseReason: null,
+            totalDowntimeMins: parseFloat(totalDowntimeMins.toFixed(2)),
+            downtimeLog: dtLog
+        });
+        toast(`Auto-Resumed Job ${fmtJobNo(j)}`, 'ok');
+    } catch (e) {
+        console.error('Auto-Resume Error:', e);
+    }
+}
 
 function connectIpCamera(mId) {
     const url = document.getElementById(`ip-cam-url-${mId}`).value.trim();
@@ -3261,9 +3463,17 @@ function disconnectIpCamera(mId) {
 }
 
 function setIpMachineStatus(mId, state) {
+    const cam = window._ipCams[mId];
+    if (!cam) return;
+    
+    // Only update and trigger actions if the state actually changes
+    if (cam.lastReportedState === state) return;
+    cam.lastReportedState = state;
+
     const el = document.getElementById(`ip-machine-status-${mId}`);
-    if (!el) return;
-    el.innerHTML = state === 'RUNNING' ? '<span class="badge b-run">RUNNING</span>' : '<span class="badge b-stop">STOPPED</span>';
+    if (el) el.innerHTML = state === 'RUNNING' ? '<span class="badge b-run">RUNNING</span>' : '<span class="badge b-stop">STOPPED</span>';
+    
+    handleCameraStateChange(mId, state);
 }
 
 function processIpCamFrame(mId) {
