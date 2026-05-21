@@ -3893,10 +3893,16 @@ function rptUpdateSpec() {
 function rptToggleResult(n) { /* deprecated — result fields are now free-text inputs */ }
 
 function rptPopulateJobSelect() {
+  // Combobox version: just clear the search field on page entry
   const inp = document.getElementById('rpt-job-search');
   const hid = document.getElementById('rpt-job-select');
   if (inp) inp.value = '';
   if (hid) hid.value = '';
+
+  // Restore saved template from localStorage (only if not already loaded)
+  if (!window._rptTemplateBuffer) {
+    rptRestoreTemplate();
+  }
 }
 
 function rptFilterJobs(q) {
@@ -4114,15 +4120,22 @@ function rptLoadTemplate(input) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = function(e) {
-    window._rptTemplateBuffer = e.target.result;
-    document.getElementById('rpt-tpl-name').textContent = '✅ Template: ' + file.name;
-    document.getElementById('rpt-tpl-name').style.color = 'var(--green)';
-    const statusEl = document.getElementById('rpt-tpl-status');
-    statusEl.textContent = 'Template โหลดสำเร็จ — จะถูกใช้เมื่อกด Download Excel';
-    statusEl.style.color = 'var(--green)';
-    statusEl.style.display = 'block';
-    document.getElementById('rpt-tpl-clear-btn').style.display = 'inline-flex';
-    if (typeof toast === 'function') toast('✅ Template พร้อมใช้งาน: ' + file.name, 'ok');
+    window._rptTemplateBuffer = e.target.result; // ArrayBuffer
+
+    // ── Save to localStorage as base64 so it persists across sessions ──
+    try {
+      const bytes = new Uint8Array(e.target.result);
+      let binary = '';
+      bytes.forEach(b => binary += String.fromCharCode(b));
+      const b64 = btoa(binary);
+      localStorage.setItem('rpt_template_b64',  b64);
+      localStorage.setItem('rpt_template_name', file.name);
+    } catch(storageErr) {
+      console.warn('rptLoadTemplate: localStorage save failed', storageErr);
+    }
+
+    rptSetTemplateUI(file.name);
+    if (typeof toast === 'function') toast('✅ Template บันทึกแล้ว — ใช้ได้ทุกครั้ง: ' + file.name, 'ok');
   };
   reader.onerror = function() {
     if (typeof toast === 'function') toast('❌ อ่านไฟล์ไม่ได้', 'err');
@@ -4131,14 +4144,53 @@ function rptLoadTemplate(input) {
   input.value = '';
 }
 
+// Helper: update UI when template is loaded
+function rptSetTemplateUI(filename) {
+  const nameEl   = document.getElementById('rpt-tpl-name');
+  const statusEl = document.getElementById('rpt-tpl-status');
+  const clearBtn = document.getElementById('rpt-tpl-clear-btn');
+  if (nameEl)   { nameEl.textContent = '✅ Template: ' + filename; nameEl.style.color = 'var(--green)'; }
+  if (statusEl) { statusEl.textContent = 'Template พร้อมใช้งาน — บันทึกไว้แล้ว ไม่ต้อง Upload ใหม่'; statusEl.style.color = 'var(--green)'; statusEl.style.display = 'block'; }
+  if (clearBtn) { clearBtn.style.display = 'inline-flex'; }
+}
+
+// Auto-load template from localStorage on startup
+function rptRestoreTemplate() {
+  try {
+    const b64  = localStorage.getItem('rpt_template_b64');
+    const name = localStorage.getItem('rpt_template_name');
+    if (!b64 || !name) return;
+
+    // Convert base64 → ArrayBuffer
+    const binary = atob(b64);
+    const bytes  = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    window._rptTemplateBuffer = bytes.buffer;
+
+    rptSetTemplateUI(name);
+    console.log('rptRestoreTemplate: loaded from localStorage —', name);
+  } catch(e) {
+    console.warn('rptRestoreTemplate: failed', e);
+  }
+}
+
 function rptClearTemplate() {
   window._rptTemplateBuffer = null;
-  document.getElementById('rpt-tpl-name').textContent = 'ยังไม่ได้ Upload template — จะใช้ Format เริ่มต้น';
-  document.getElementById('rpt-tpl-name').style.color = '';
-  document.getElementById('rpt-tpl-status').style.display = 'none';
-  document.getElementById('rpt-tpl-clear-btn').style.display = 'none';
-  if (typeof toast === 'function') toast('ลบ Template แล้ว', 'ok');
-  if(document.getElementById('rpt-tpl-input')) document.getElementById('rpt-tpl-input').value = '';
+
+  // Remove from localStorage too
+  try {
+    localStorage.removeItem('rpt_template_b64');
+    localStorage.removeItem('rpt_template_name');
+  } catch(e) {}
+
+  const nameEl   = document.getElementById('rpt-tpl-name');
+  const statusEl = document.getElementById('rpt-tpl-status');
+  const clearBtn = document.getElementById('rpt-tpl-clear-btn');
+  if (nameEl)   { nameEl.textContent = 'ยังไม่ได้ Upload template — จะใช้ Format เริ่มต้น'; nameEl.style.color = ''; }
+  if (statusEl) { statusEl.style.display = 'none'; }
+  if (clearBtn) { clearBtn.style.display = 'none'; }
+  if (typeof toast === 'function') toast('ลบ Template แล้ว (ไม่โหลดอัตโนมัติอีก)', 'ok');
+  if (document.getElementById('rpt-tpl-input')) document.getElementById('rpt-tpl-input').value = '';
 }
 
 async function rptInjectToTemplate(d, XLSX_lib) {
