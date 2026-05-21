@@ -6,7 +6,10 @@
 <title>Endurance Test Management</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -246,7 +249,14 @@ const NOTIFY_CONFIG = {
 </script>
 <style>
 :root{--bg:#0f1117;--bg2:#161b27;--bg3:#1e2535;--border:#2a3348;--border2:#3a4a66;--text:#e8edf7;--text2:#8a99bb;--text3:#5a6a88;--accent:#3b82f6;--accent2:#1d4ed8;--green:#22c55e;--green2:#16a34a;--amber:#f59e0b;--red:#ef4444;--teal:#14b8a6;--mono:'IBM Plex Mono',monospace}
-*{box-sizing:border-box;margin:0;padding:0}
+*{box-sizing:border-box;margin:0;padding:0;scrollbar-width:thin;scrollbar-color:var(--border2) var(--bg2)}
+
+/* WebKit Scrollbar Styling */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
 html,body{height:100%}
 body{font-family:'IBM Plex Sans Thai',sans-serif;background:var(--bg);color:var(--text)}
 .nav{display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:56px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;gap:8px;flex-wrap:wrap}
@@ -413,6 +423,54 @@ tr:last-child td{border-bottom:none}
   animation: gradient-move 3s linear infinite, glow-sparkle 2s ease-in-out infinite;
   font-weight: 800;
 }
+
+/* ===== REPORT FORM STYLES ===== */
+#rpt-table-rows .rpt-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 1fr 1fr 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+#rpt-table-rows .rpt-row .sample-no {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text3);
+  text-align: center;
+  background: var(--bg3);
+  border-radius: 6px;
+  padding: 8px 4px;
+  border: 1px solid var(--border);
+}
+#rpt-table-rows .rpt-row .diff-cell {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 8px 11px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text3);
+  cursor: default;
+}
+#rpt-table-rows .rpt-row .diff-cell.neg-ok { color: var(--green); }
+#rpt-table-rows .rpt-row .diff-cell.neg-ng { color: var(--red); }
+#rpt-table-rows .rpt-row .judge-cell {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 11px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-align: center;
+  cursor: default;
+}
+#rpt-table-rows .rpt-row .judge-cell.ok-cell { color: var(--green); background: rgba(34,197,94,.1); border-color: rgba(34,197,94,.3); }
+#rpt-table-rows .rpt-row .judge-cell.ng-cell { color: var(--red); background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.3); }
+@media print {
+  body > *:not(#rpt-print-wrap) { display: none !important; }
+  #rpt-print-wrap { display: block !important; }
+}
 </style>
 </head>
 <body>
@@ -485,6 +543,7 @@ tr:last-child td{border-bottom:none}
     <button class="nav-tab" onclick="gotoPage('running')">Active Jobs</button>
     <button class="nav-tab" onclick="gotoPage('history')">History</button>
     <button class="nav-tab" onclick="gotoPage('export')">Export Excel</button>
+    <button class="nav-tab" onclick="gotoPage('report')">Report Form</button>
     <button class="nav-tab" onclick="gotoPage('settings')">⚙ Notify</button>
     <button class="nav-tab" onclick="gotoPage('jig')">🔧 Jig Calc</button>
     <button class="nav-tab" id="admin-tab" style="display:none" onclick="gotoPage('admin')">👤 Admin<span class="admin-badge" id="pending-count-badge"></span></button>
@@ -719,82 +778,6 @@ tr:last-child td{border-bottom:none}
 </div>
 
 <!-- IP CAMERA PAGE -->
-<div class="page" id="page-camera">
-  <div class="sec-hdr">
-    <div><p class="sec-title">IP Camera Monitoring</p><p class="sec-sub">Auto Cycle Tracking via MJPEG Stream & Motion Detection</p></div>
-  </div>
-  <div class="g2">
-    <!-- Machine 1 -->
-    <div class="card" style="display:flex; flex-direction:column;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <p class="card-title" style="margin:0; border:none; padding:0;">Machine No. 1</p>
-        <div id="ip-machine-status-1"><span class="badge b-stop">STOPPED</span></div>
-      </div>
-      <div class="form-grid g2" style="margin-bottom: 10px; align-items: end;">
-        <div class="fl" style="grid-column: span 2;">
-          <input type="text" id="ip-cam-url-1" placeholder="http://192.168.1.45:8080/video">
-        </div>
-        <div class="btn-row" style="margin:0; display:flex; gap:5px; grid-column: span 2;">
-          <button class="btn btn-success" style="flex:1; justify-content:center;" onclick="connectIpCamera(1)">Connect</button>
-          <button class="btn btn-danger" style="flex:1; justify-content:center;" onclick="disconnectIpCamera(1)">Disconnect</button>
-        </div>
-      </div>
-      <div style="margin-bottom:8px; font-size:12px; color:var(--text3);" id="ip-cam-status-1">Waiting for connection...</div>
-      
-      <div style="position:relative; width:100%; aspect-ratio:4/3; background:var(--bg); border-radius:8px; overflow:hidden; border:1px solid var(--border);">
-        <img id="ip-cam-img-1" crossorigin="anonymous" style="position:absolute; width:100%; height:100%; object-fit:cover; display:none;">
-        <canvas id="ip-cam-canvas-1" style="position:absolute; width:100%; height:100%; z-index:10; pointer-events:none;"></canvas>
-        <div id="ip-cam-placeholder-1" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--text3); font-size:13px;">No Signal</div>
-      </div>
-      <div class="metrics" style="margin-top:10px; grid-template-columns: 1fr;">
-         <div class="mc mc-blue" style="cursor:default;"><div class="mc-label">LIVE CYCLES</div><div class="mc-val blue" id="ip-cycles-1">0</div></div>
-      </div>
-      <div class="fl" style="margin-top:10px;">
-         <label>Motion Sensitivity: <span id="ip-sens-val-1">50</span>%</label>
-         <input type="range" id="ip-sens-1" min="1" max="100" value="50" oninput="document.getElementById('ip-sens-val-1').innerText=this.value" style="padding:0; height:4px; accent-color:var(--accent);">
-      </div>
-      <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-         <span style="font-size:11px; color:var(--text3); font-weight:500; text-transform:uppercase; letter-spacing:0.05em;">Auto-Sync Database</span>
-         <button id="cam-link-btn-1" class="btn btn-ghost btn-sm" onclick="toggleCameraLink(1)">❌ Unlinked</button>
-      </div>
-    </div>
-    
-    <!-- Machine 2 -->
-    <div class="card" style="display:flex; flex-direction:column;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <p class="card-title" style="margin:0; border:none; padding:0;">Machine No. 2</p>
-        <div id="ip-machine-status-2"><span class="badge b-stop">STOPPED</span></div>
-      </div>
-      <div class="form-grid g2" style="margin-bottom: 10px; align-items: end;">
-        <div class="fl" style="grid-column: span 2;">
-          <input type="text" id="ip-cam-url-2" placeholder="http://192.168.1.100:81/stream">
-        </div>
-        <div class="btn-row" style="margin:0; display:flex; gap:5px; grid-column: span 2;">
-          <button class="btn btn-success" style="flex:1; justify-content:center;" onclick="connectIpCamera(2)">Connect</button>
-          <button class="btn btn-danger" style="flex:1; justify-content:center;" onclick="disconnectIpCamera(2)">Disconnect</button>
-        </div>
-      </div>
-      <div style="margin-bottom:8px; font-size:12px; color:var(--text3);" id="ip-cam-status-2">Waiting for connection...</div>
-      
-      <div style="position:relative; width:100%; aspect-ratio:4/3; background:var(--bg); border-radius:8px; overflow:hidden; border:1px solid var(--border);">
-        <img id="ip-cam-img-2" crossorigin="anonymous" style="position:absolute; width:100%; height:100%; object-fit:cover; display:none;">
-        <canvas id="ip-cam-canvas-2" style="position:absolute; width:100%; height:100%; z-index:10; pointer-events:none;"></canvas>
-        <div id="ip-cam-placeholder-2" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--text3); font-size:13px;">No Signal</div>
-      </div>
-      <div class="metrics" style="margin-top:10px; grid-template-columns: 1fr;">
-         <div class="mc mc-blue" style="cursor:default;"><div class="mc-label">LIVE CYCLES</div><div class="mc-val blue" id="ip-cycles-2">0</div></div>
-      </div>
-      <div class="fl" style="margin-top:10px;">
-         <label>Motion Sensitivity: <span id="ip-sens-val-2">50</span>%</label>
-         <input type="range" id="ip-sens-2" min="1" max="100" value="50" oninput="document.getElementById('ip-sens-val-2').innerText=this.value" style="padding:0; height:4px; accent-color:var(--accent);">
-      </div>
-      <div style="margin-top:12px; padding-top:10px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-         <span style="font-size:11px; color:var(--text3); font-weight:500; text-transform:uppercase; letter-spacing:0.05em;">Auto-Sync Database</span>
-         <button id="cam-link-btn-2" class="btn btn-ghost btn-sm" onclick="toggleCameraLink(2)">❌ Unlinked</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- HISTORY -->
 <div class="page" id="page-history">
@@ -865,6 +848,211 @@ tr:last-child td{border-bottom:none}
     </table></div>
   </div>
 </div>
+
+<div class="page" id="page-report">
+  <!-- ===== SECTION A: HEADER ===== -->
+  <div class="sec-hdr">
+    <div>
+      <p class="sec-title">📄 Endurance Report Form</p>
+      <p class="sec-sub">กรอกข้อมูลสร้างเอกสาร ENDURANCE TEST CONDITION & RESULT</p>
+    </div>
+  </div>
+
+  <!-- ===== SECTION B: LOAD FROM EXISTING JOB ===== -->
+  <div class="card" id="rpt-load-card">
+    <p class="card-title">📂 โหลดข้อมูลจาก Job ที่บันทึกไว้</p>
+    <p style="font-size:11px;color:var(--text3);margin-bottom:10px">
+      พิมพ์ Part No. / Customer เพื่อค้นหา — หรือพิมพ์ข้อมูลเองโดยตรงก็ได้ หากไม่ต้องการดึงจากระบบ
+    </p>
+    <div class="form-grid g3" style="margin-bottom:10px">
+      <div class="fl" style="grid-column:span 2;position:relative">
+        <label>ค้นหา Job (พิมพ์ Part No. / Customer / Lot No.)</label>
+        <input
+          type="text"
+          id="rpt-job-search"
+          placeholder="พิมพ์เพื่อค้นหา... หรือปล่อยว่างเพื่อดูทั้งหมด"
+          autocomplete="off"
+          oninput="rptFilterJobs(this.value)"
+          onfocus="rptShowDropdown()"
+          style="width:100%"
+        >
+        <div
+          id="rpt-job-dropdown"
+          style="display:none;position:absolute;top:calc(100% + 3px);left:0;right:0;z-index:300;
+                 background:var(--bg2);border:1px solid var(--border2);border-radius:8px;
+                 max-height:240px;overflow-y:auto;box-shadow:0 8px 28px rgba(0,0,0,.5)"
+        ></div>
+        <input type="hidden" id="rpt-job-select" value="">
+      </div>
+      <div class="fl" style="align-self:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="rptClearJobSearch()">✕ ล้าง</button>
+      </div>
+    </div>
+    <div id="rpt-loaded-info" style="font-size:11px;color:var(--green);display:none;padding:6px 10px;background:rgba(34,197,94,.08);border-radius:6px;border:1px solid rgba(34,197,94,.2)"></div>
+  </div>
+
+  <!-- ===== SECTION C: FORM FIELDS ===== -->
+  <div class="card">
+    <p class="card-title">📝 ข้อมูลทั่วไป (General Info)</p>
+    <div class="form-grid g3" style="margin-bottom:11px">
+      <div class="fl">
+        <label>D6 — Customer Name</label>
+        <input type="text" id="rpt-customer" placeholder="Customer Name">
+      </div>
+      <div class="fl">
+        <label>C7 — Part No.</label>
+        <input type="text" id="rpt-partno" placeholder="Part No.">
+      </div>
+      <div class="fl">
+        <label>C8 — Lot No.</label>
+        <input type="text" id="rpt-lotno" placeholder="Lot No.">
+      </div>
+    </div>
+    <div class="form-grid g3" style="margin-bottom:11px">
+      <div class="fl">
+        <label>C9 — Testing Machine</label>
+        <input type="text" id="rpt-machine" placeholder="เช่น Load Test Machine K4">
+      </div>
+      <div class="fl">
+        <label>C10 — Quantity Test (PCS)</label>
+        <input type="number" id="rpt-qty" placeholder="จำนวนชิ้น" min="1">
+      </div>
+      <div class="fl">
+        <label>C11 — Cycle Test</label>
+        <input type="number" id="rpt-cycle" placeholder="เช่น 1200000">
+      </div>
+    </div>
+    <div class="form-grid g2" style="margin-bottom:11px">
+      <div class="fl">
+        <label>C12 — Speed Test (cycle/min)</label>
+        <input type="number" id="rpt-speed" placeholder="เช่น 500">
+      </div>
+      <div class="fl">
+        <label>T13 — Date Test (วันเริ่ม ~ วันสิ้นสุด)</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="date" id="rpt-date-start" style="flex:1">
+          <span style="color:var(--text3);font-size:13px">~</span>
+          <input type="date" id="rpt-date-end" style="flex:1">
+        </div>
+        <span style="font-size:10px;color:var(--text3);margin-top:3px">หากงานยังไม่เสร็จ ไม่ต้องกรอก "วันสิ้นสุด" — จะแสดงเป็น "-" ในเอกสาร</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION D: LOAD / RESULT ===== -->
+  <div class="card">
+    <p class="card-title">⚖️ ค่า Load & Result</p>
+    <div class="form-grid g2" style="margin-bottom:11px">
+      <div class="fl">
+        <label>F15 — ค่า Load 1 @ L1 (N)</label>
+        <input type="number" id="rpt-load1" step="0.01" placeholder="Load 1 (N)">
+      </div>
+      <div class="fl">
+        <label>F16 — ค่า Load 2 @ L2 (N)</label>
+        <input type="number" id="rpt-load2" step="0.01" placeholder="Load 2 (N) — optional">
+      </div>
+    </div>
+    <div class="form-grid g2" style="margin-bottom:11px">
+      <div class="fl">
+        <label>H15 — Result Load 1 <span style="color:var(--text3);font-size:10px">(พิมพ์เอง)</span></label>
+        <input type="text" id="rpt-result1-txt" placeholder="เช่น Pass / Fail / OK / NG / หมายเหตุ...">
+      </div>
+      <div class="fl">
+        <label>H16 — Result Load 2 <span style="color:var(--text3);font-size:10px">(พิมพ์เอง)</span></label>
+        <input type="text" id="rpt-result2-txt" placeholder="เช่น Pass / Fail / OK / NG / N/A / หมายเหตุ...">
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION E: SPEC LOAD 1 (C21) ===== -->
+  <div class="card">
+    <p class="card-title">📐 Spec Load 1 — Cell C21 (Merged, 3 บรรทัด)</p>
+    <p style="font-size:11px;color:var(--text3);margin-bottom:12px">
+      Cell C21 ใน template ถูก Merge — ระบบจะเขียน 3 บรรทัดแยกกันด้วย newline:<br>
+      <code style="color:var(--teal)">บรรทัด 1: L1 = XX.XX mm.</code><br>
+      <code style="color:var(--teal)">บรรทัด 2: YY.YY ± Z N  หรือ  YY.YY +Z/-0 N  หรือ  YY.YY +0/-Z N</code><br>
+      <code style="color:var(--teal)">บรรทัด 3: ( Lower N - Upper N )</code>
+    </p>
+    <div class="form-grid g4" style="margin-bottom:11px">
+      <div class="fl">
+        <label>ค่า L1 (mm) — บรรทัด 1</label>
+        <input type="number" id="rpt-spec-l1" step="0.01" placeholder="เช่น 57.30" oninput="rptUpdateSpec()">
+      </div>
+      <div class="fl">
+        <label>ค่า F1 / Load (N) — บรรทัด 2</label>
+        <input type="number" id="rpt-spec-f1" step="0.01" placeholder="เช่น 75.00" oninput="rptUpdateSpec()">
+      </div>
+      <div class="fl">
+        <label>Tolerance (N) — ค่า + หรือ -</label>
+        <input type="number" id="rpt-spec-tol" step="0.01" placeholder="เช่น 5" oninput="rptUpdateSpec()">
+      </div>
+      <div class="fl">
+        <label>Tolerance Mode</label>
+        <select id="rpt-spec-tol-mode" onchange="rptUpdateSpec()" style="width:100%">
+          <option value="pm">± (Plus & Minus)</option>
+          <option value="plus">+ Only (Upper เท่านั้น)</option>
+          <option value="minus">- Only (Lower เท่านั้น)</option>
+        </select>
+      </div>
+    </div>
+    <div style="background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.2);border-radius:8px;padding:10px 14px;font-size:12px" id="rpt-spec-box">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Preview (3 บรรทัดที่จะลงใน Cell C21)</div>
+      <div id="rpt-spec-line1" style="color:var(--teal);font-family:var(--mono);padding:2px 0;border-bottom:1px solid rgba(20,184,166,.15)">—</div>
+      <div id="rpt-spec-line2" style="color:var(--teal);font-family:var(--mono);padding:2px 0;border-bottom:1px solid rgba(20,184,166,.15)">—</div>
+      <div id="rpt-spec-line3" style="color:var(--teal);font-family:var(--mono);padding:2px 0">—</div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION F: BEFORE / AFTER / DIFF / JUDGMENT TABLE ===== -->
+  <div class="card">
+    <p class="card-title">📊 ตารางวัดค่า Before / After Endurance Test (E21:H25)</p>
+    <p style="font-size:11px;color:var(--text3);margin-bottom:12px">
+      กรอกค่า <b>Before</b> (ก่อนทดสอบ) และ <b>After</b> (หลังทดสอบ) — ระบบคำนวณ <b>Difference %</b> และ <b>Judgment</b> ให้อัตโนมัติ<br>
+      <span style="color:var(--amber)">⚠ Judgment: หาก Difference ≥ -5% = <b>OK</b> / ถ้า &lt; -5% (เช่น -5.1%) = <b style="color:var(--red)">NG</b></span>
+    </p>
+    <div style="display:grid;grid-template-columns:50px 1fr 1fr 1fr 1fr 1fr;gap:6px;margin-bottom:6px;font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:0 4px">
+      <span>Sample</span>
+      <span>Before (N)<br><span style="color:var(--text3);font-weight:400">E21:E25</span></span>
+      <span>After (N)<br><span style="color:var(--text3);font-weight:400">F21:F25</span></span>
+      <span>Diff (%)<br><span style="color:var(--text3);font-weight:400">G21:G25</span></span>
+      <span>Judgment<br><span style="color:var(--text3);font-weight:400">H21:H25</span></span>
+      <span>Remark</span>
+    </div>
+    <div id="rpt-table-rows"></div>
+  </div>
+
+  <!-- ===== SECTION H: ACTION BUTTONS ===== -->
+  <div class="card">
+    <p class="card-title">⬇ Export เอกสาร</p>
+    <div style="background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:10px 14px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <p style="font-size:12px;font-weight:500;margin-bottom:3px">📁 Template Excel</p>
+          <p style="font-size:10px;color:var(--text3)" id="rpt-tpl-name">ยังไม่ได้ Upload template — จะใช้ Format เริ่มต้น</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer">
+            ⬆ Upload Template (.xlsx)
+            <input type="file" id="rpt-tpl-input" accept=".xlsx" style="display:none" onchange="rptLoadTemplate(this)">
+          </label>
+          <button class="btn btn-ghost btn-sm" onclick="rptClearTemplate()" id="rpt-tpl-clear-btn" style="display:none;color:var(--red)">✕ ลบ</button>
+        </div>
+      </div>
+      <div id="rpt-tpl-status" style="font-size:10px;margin-top:6px;display:none"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-success" onclick="rptExportExcel()">⬇ Download Excel (.xlsx)</button>
+      <button class="btn btn-primary" onclick="rptExportPDF()">🖨 Print / Save PDF</button>
+      <button class="btn btn-ghost" onclick="rptClearForm()">🗑 Clear All</button>
+    </div>
+    <p style="font-size:10px;color:var(--text3);margin-top:8px">
+      ถ้า Upload template ไว้ → ข้อมูลจะถูก inject ลงใน template นั้นโดยตรง<br>
+      ถ้าไม่ได้ Upload → ระบบสร้าง Excel ใหม่แบบ Format มาตรฐาน<br>
+      PDF: เปิด Print Dialog เลือก "Save as PDF"
+    </p>
+  </div>
+</div>
+<!-- END page-report -->
 
 <!-- EDIT MODAL -->
 <div class="ov" id="modal-edit">
@@ -1299,7 +1487,7 @@ function gotoPage(id){
     return;
   }
 
-  const map={dashboard:0,input:1,running:2,history:3,export:4,settings:5,jig:6,admin:7};
+  const map={dashboard:0,input:1,running:2,history:3,export:4,report:5,settings:6,jig:7,admin:8};
   if(map[id] !== undefined && document.querySelectorAll('.nav-tab')[map[id]]) {
     document.querySelectorAll('.nav-tab')[map[id]].classList.add('active');
   }
@@ -1310,6 +1498,7 @@ function gotoPage(id){
   if(id==='export')renderExport();
   if(id==='settings')renderSettings();
   if(id==='admin')renderAdminPanel();
+  if(id==='report'){ rptInitTable(); rptPopulateJobSelect(); }
 }
 
 function autoCalc(){
@@ -1613,60 +1802,99 @@ function renderDashMachineJobs(machineId) {
 
     function renderMachineChart(machineId, canvasId, chartKey) {
       const mJobs = filteredJobs.filter(j => String(j.machine) === machineId);
-      const labels = mJobs.map(j => [`${fmtJobNo(j).split('-')[2]}`, j.startdate ? `${j.startdate.slice(8,10)}/${j.startdate.slice(5,7)}` : '']);
-      const barData = mJobs.map(j => parseFloat(dhm(j).total.toFixed(2)));
-      const lineData = mJobs.map(j => (j.startH || 0) + ((j.startM || 0) / 60));
-      const bgColors = mJobs.map(j => {
-        if(j.status === 'Stop') return 'rgba(239, 68, 68, 0.6)';
-        if(j.status === 'Finished') return 'rgba(59, 130, 246, 0.6)';
-        if(j.status === 'Plan') return 'rgba(245, 158, 11, 0.6)';
-        if(j.status === 'Run' && j.paused) return 'rgba(245, 158, 11, 0.6)';
-        return 'rgba(34, 197, 94, 0.6)';
-      });
-      const bdColors = mJobs.map(j => {
-        if(j.status === 'Stop') return '#ef4444';
-        if(j.status === 'Finished') return '#3b82f6';
-        if(j.status === 'Plan') return '#f59e0b';
-        if(j.status === 'Run' && j.paused) return '#f59e0b';
-        return '#22c55e';
+
+      const canvasEl = document.getElementById(canvasId);
+      if (canvasEl && canvasEl.parentElement) {
+        canvasEl.parentElement.style.height = Math.max(280, mJobs.length * 32 + 80) + 'px';
+      }
+
+      const labels = mJobs.map(j => {
+        const no = fmtJobNo(j).split('-')[2] || '';
+        const dt = j.startdate ? `${j.startdate.slice(8,10)}/${j.startdate.slice(5,7)}` : '';
+        return `${no} | ${dt}`;
       });
 
-      const ctx = document.getElementById(canvasId).getContext('2d');
+      const barData = mJobs.map(j => {
+        const sDate = startDt(j);
+        const sMs = !isNaN(sDate.getTime()) ? sDate.getTime() : Date.now();
+        const fDate = finishDt(j);
+        let fMs = fDate && !isNaN(fDate.getTime()) ? fDate.getTime() : sMs + (24 * 60 * 60 * 1000);
+        if (fMs <= sMs) fMs = sMs + (24 * 60 * 60 * 1000); // ป้องกันกราฟความกว้าง 0
+        return [sMs, fMs];
+      });
+
+      const bgColors = mJobs.map(j => {
+        if(j.status === 'Stop') return 'rgba(239, 68, 68, 0.8)';
+        if(j.status === 'Finished') return 'rgba(59, 130, 246, 0.8)';
+        if(j.status === 'Plan') return 'rgba(245, 158, 11, 0.8)';
+        if(j.status === 'Run' && j.paused) return 'rgba(245, 158, 11, 0.8)';
+        return 'rgba(34, 197, 94, 0.8)';
+      });
+
+      let scaleMin, scaleMax;
+      if (selectedMonth) {
+        const [yy, mm] = selectedMonth.split('-');
+        scaleMin = new Date(yy, parseInt(mm)-1, 1).getTime();
+        scaleMax = new Date(yy, parseInt(mm), 0, 23, 59, 59).getTime(); // ครอบคลุมถึงสิ้นวันสุดท้ายของเดือน
+      }
+
+      const ctx = canvasEl.getContext('2d');
       if(window[chartKey]) window[chartKey].destroy();
       window[chartKey] = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: labels,
           datasets: [
-            { type: 'bar', label: 'Duration (Days)', data: barData, backgroundColor: bgColors, borderColor: bdColors, borderWidth: 1, yAxisID: 'y', borderRadius: 4, barPercentage: 0.6 },
-            { type: 'line', label: 'Start Time', data: lineData, backgroundColor: '#f59e0b', borderColor: '#f59e0b', borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#f59e0b', pointBorderColor: '#fff', pointHoverRadius: 6, tension: 0.3, yAxisID: 'y1' }
+            { label: 'Job Timeline', data: barData, backgroundColor: bgColors, borderRadius: 4, barPercentage: 0.6 }
           ]
         },
         options: {
+          indexAxis: 'y',
           responsive: true, maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
+          interaction: { mode: 'nearest', intersect: true },
           plugins: {
-            legend: { display: true, position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11, family: "'IBM Plex Sans Thai', sans-serif" }, color: '#e8edf7' } },
+            legend: { display: false },
             tooltip: {
               backgroundColor: 'rgba(15, 17, 23, 0.95)', titleColor: '#3b82f6', bodyColor: '#e8edf7', borderColor: '#3a4a66', borderWidth: 1, padding: 10,
               callbacks: {
                 title: function(ctx){ const job = mJobs[ctx[0].dataIndex]; return `${fmtJobNo(job)} | Lot: ${job.lotno||'-'}`; },
                 label: function(ctx) {
                   const job = mJobs[ctx.dataIndex];
-                  if(ctx.dataset.type === 'line') return `🕒 Start: ${String(job.startH||0).padStart(2,'0')}:${String(job.startM||0).padStart(2,'0')}`;
+                  const formatDT = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                  const sTime = formatDT(startDt(job));
+                  const fDate = finishDt(job);
+                  const fTime = fDate ? formatDT(fDate) : '-';
                   const dd = dhm(job);
                   let stat = job.status; if(stat === 'Run' && job.paused) stat = 'Paused';
-                  return `⏳ Duration: ${dd.d}d ${dd.h}h ${dd.m}m [${stat}]`;
+                  return [
+                    `Start: ${sTime}`,
+                    `End: ${fTime}`,
+                    `Duration: ${dd.d}d ${dd.h}h ${dd.m}m [${stat}]`
+                  ];
                 }
               }
             }
           },
           scales: {
-            x: { grid: { display: false }, ticks: { font: { family: "'IBM Plex Mono', monospace", size: 10 }, color: '#e8edf7' } },
-            y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Duration (Days)', color: '#e8edf7', font: { size: 11, weight: '500' } }, beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.15)', borderDash: [4, 4] }, ticks: { font: { family: "'IBM Plex Mono', monospace", size: 10 }, color: '#e8edf7' } },
-            y1: {
-              type: 'linear', display: true, position: 'right', title: { display: true, text: 'Start Time', color: '#e8edf7', font: { size: 11, weight: '500' } }, min: 0, max: 24, grid: { drawOnChartArea: false },
-              ticks: { stepSize: 6, font: { family: "'IBM Plex Mono', monospace", size: 10 }, color: '#e8edf7', callback: function(val){ const h=Math.floor(val); const m=Math.round((val-h)*60); return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'); } }
+            x: { 
+              type: 'linear',
+              min: scaleMin,
+              max: scaleMax,
+              grid: { color: 'rgba(255, 255, 255, 0.1)', borderDash: [4, 4] }, 
+              ticks: { 
+                font: { family: "'IBM Plex Mono', monospace", size: 10 }, 
+                color: '#e8edf7',
+                stepSize: 86400000 * 2, // ล็อกระยะขีดให้โชว์ทุกๆ 2 วัน
+                callback: function(val) {
+                  const d = new Date(val);
+                  return `${String(d.getDate()).padStart(2,'0')} ${d.toLocaleString('en-US', { month: 'short' })}`;
+                }
+              } 
+            },
+            y: { 
+              type: 'category',
+              grid: { display: false }, 
+              ticks: { font: { family: "'IBM Plex Mono', monospace", size: 10 }, color: '#e8edf7' } 
             }
           }
         }
@@ -3557,6 +3785,759 @@ function processIpCamFrame(mId) {
     cam.raf = requestAnimationFrame(() => processIpCamFrame(mId));
 }
 
+</script>
+<script>
+// ==============================================
+// REPORT FORM — All functions
+// ==============================================
+
+function rptInitTable() {
+  const wrap = document.getElementById('rpt-table-rows');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  for (let i = 1; i <= 5; i++) {
+    wrap.innerHTML += `
+    <div class="rpt-row" id="rpt-row-${i}">
+      <div class="sample-no">${i}</div>
+      <input type="number" id="rpt-before-${i}" step="0.01" placeholder="Before (N)"
+             oninput="rptCalcRow(${i})">
+      <input type="number" id="rpt-after-${i}" step="0.01" placeholder="After (N)"
+             oninput="rptCalcRow(${i})">
+      <div class="diff-cell" id="rpt-diff-${i}">—</div>
+      <div class="judge-cell" id="rpt-judge-${i}">—</div>
+      <input type="text" id="rpt-remark-${i}" placeholder="Remark">
+    </div>`;
+  }
+}
+
+function rptCalcRow(i) {
+  const before = parseFloat(document.getElementById(`rpt-before-${i}`).value);
+  const after  = parseFloat(document.getElementById(`rpt-after-${i}`).value);
+  const diffEl  = document.getElementById(`rpt-diff-${i}`);
+  const judgeEl = document.getElementById(`rpt-judge-${i}`);
+
+  if (isNaN(before) || isNaN(after) || before === 0) {
+    diffEl.textContent = '—';
+    diffEl.className = 'diff-cell';
+    judgeEl.textContent = '—';
+    judgeEl.className = 'judge-cell';
+    return;
+  }
+
+  const diff = ((after - before) / before) * 100;
+  const diffRounded = diff.toFixed(2);
+
+  diffEl.textContent = diffRounded + '%';
+  if (diff >= -5) {
+    diffEl.className = 'diff-cell neg-ok';
+    judgeEl.textContent = 'OK';
+    judgeEl.className = 'judge-cell ok-cell';
+  } else {
+    diffEl.className = 'diff-cell neg-ng';
+    judgeEl.textContent = 'NG';
+    judgeEl.className = 'judge-cell ng-cell';
+  }
+}
+
+function rptUpdateSpec() {
+  const l1   = parseFloat(document.getElementById('rpt-spec-l1').value);
+  const f1   = parseFloat(document.getElementById('rpt-spec-f1').value);
+  const tol  = parseFloat(document.getElementById('rpt-spec-tol').value);
+  const mode = (document.getElementById('rpt-spec-tol-mode') || {}).value || 'pm';
+
+  const l1El = document.getElementById('rpt-spec-line1');
+  const f1El = document.getElementById('rpt-spec-line2');
+  const rnEl = document.getElementById('rpt-spec-line3');
+
+  if (isNaN(l1) || isNaN(f1) || isNaN(tol)) {
+    if (l1El) l1El.textContent = '—';
+    if (f1El) f1El.textContent = '—';
+    if (rnEl) rnEl.textContent = '—';
+    return;
+  }
+
+  const line1 = `L1 = ${l1.toFixed(2)} mm.`;
+
+  let line2, upper, lower;
+  if (mode === 'pm') {
+    upper = (f1 + tol).toFixed(2);
+    lower = (f1 - tol).toFixed(2);
+    line2 = `${f1.toFixed(2)} ± ${tol.toFixed(2)} N,`;
+  } else if (mode === 'plus') {
+    upper = (f1 + tol).toFixed(2);
+    lower = f1.toFixed(2);
+    line2 = `${f1.toFixed(2)} +${tol.toFixed(2)}/-0 N,`;
+  } else {
+    upper = f1.toFixed(2);
+    lower = (f1 - tol).toFixed(2);
+    line2 = `${f1.toFixed(2)} +0/-${tol.toFixed(2)} N,`;
+  }
+
+  const line3 = `( ${lower} N - ${upper} N )`;
+
+  if (l1El) l1El.textContent = line1;
+  if (f1El) f1El.textContent = line2;
+  if (rnEl) rnEl.textContent = line3;
+
+  const specText = `${line1}\n${line2}\n${line3}`;
+  let hidden = document.getElementById('rpt-spec-hidden');
+  if (!hidden) {
+    hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.id   = 'rpt-spec-hidden';
+    document.body.appendChild(hidden);
+  }
+  hidden.value = specText;
+}
+
+function rptToggleResult(n) { /* deprecated — result fields are now free-text inputs */ }
+
+function rptPopulateJobSelect() {
+  const inp = document.getElementById('rpt-job-search');
+  const hid = document.getElementById('rpt-job-select');
+  if (inp) inp.value = '';
+  if (hid) hid.value = '';
+}
+
+function rptFilterJobs(q) {
+  const jobs = window._jobs || [];
+  const query = (q || '').trim().toLowerCase();
+  const filtered = query
+    ? jobs.filter(j =>
+        (j.partno   || '').toLowerCase().includes(query) ||
+        (j.customer || '').toLowerCase().includes(query) ||
+        (j.lotno    || '').toLowerCase().includes(query) ||
+        String(j.no || '').includes(query)
+      )
+    : jobs;
+  rptRenderDropdown(filtered);
+}
+
+function rptShowDropdown() {
+  rptFilterJobs(document.getElementById('rpt-job-search').value);
+  document.getElementById('rpt-job-dropdown').style.display = 'block';
+  setTimeout(() => {
+    document.addEventListener('click', function _rptClose(e) {
+      const dd  = document.getElementById('rpt-job-dropdown');
+      const inp = document.getElementById('rpt-job-search');
+      if (dd && !dd.contains(e.target) && e.target !== inp) {
+        dd.style.display = 'none';
+        document.removeEventListener('click', _rptClose);
+      }
+    });
+  }, 50);
+}
+
+function rptRenderDropdown(jobs) {
+  const dd = document.getElementById('rpt-job-dropdown');
+  if (!dd) return;
+  if (!jobs.length) {
+    dd.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--text3)">ไม่พบ Job ที่ตรงกัน — กรอกข้อมูลเองได้เลย</div>';
+    dd.style.display = 'block';
+    return;
+  }
+  dd.innerHTML = jobs.slice(0, 50).map(j => `
+    <div
+      onmousedown="rptSelectJob('${j._id}')"
+      style="padding:8px 14px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--border);
+             display:flex;flex-direction:column;gap:2px"
+      onmouseover="this.style.background='var(--bg3)'"
+      onmouseout="this.style.background=''"
+    >
+      <span style="font-family:var(--mono);color:var(--accent);font-size:11px">
+        [${j.no || '?'}] ${j.partno || '—'}
+        <span style="color:var(--green);font-size:10px;margin-left:6px">${j.status || ''}</span>
+      </span>
+      <span style="color:var(--text2)">${j.customer || '—'} &nbsp;|&nbsp; Lot: ${j.lotno || '—'}</span>
+      <span style="color:var(--text3);font-size:10px">${j.startdate || '—'}</span>
+    </div>
+  `).join('');
+  dd.style.display = 'block';
+}
+
+function rptSelectJob(fid) {
+  document.getElementById('rpt-job-select').value = fid;
+  document.getElementById('rpt-job-dropdown').style.display = 'none';
+  const j = (window._jobs || []).find(x => x._id === fid);
+  if (j) {
+    document.getElementById('rpt-job-search').value =
+      `[${j.no || '?'}] ${j.partno || '—'} | ${j.customer || '—'} | ${j.startdate || '—'}`;
+  }
+  rptLoadJob();
+}
+
+function rptClearJobSearch() {
+  const inp = document.getElementById('rpt-job-search');
+  const hid = document.getElementById('rpt-job-select');
+  const dd  = document.getElementById('rpt-job-dropdown');
+  if (inp) inp.value = '';
+  if (hid) hid.value = '';
+  if (dd)  dd.style.display = 'none';
+  document.getElementById('rpt-loaded-info').style.display = 'none';
+}
+
+function rptLoadJob() {
+  const fid  = (document.getElementById('rpt-job-select') || {}).value || '';
+  const info = document.getElementById('rpt-loaded-info');
+  if (!fid) { info.style.display = 'none'; return; }
+  const j = (window._jobs || []).find(x => x._id === fid);
+  if (!j) return;
+
+  if (j.customer)  document.getElementById('rpt-customer').value = j.customer;
+  if (j.partno)    document.getElementById('rpt-partno').value   = j.partno;
+  if (j.lotno)     document.getElementById('rpt-lotno').value    = j.lotno;
+  const machineLabel = j.machine == '2' ? 'Machine No.2' : 'Machine No.1';
+  document.getElementById('rpt-machine').value = machineLabel;
+  if (j.pcs)       document.getElementById('rpt-qty').value      = j.pcs;
+  if (j.cycles)    document.getElementById('rpt-cycle').value    = j.cycles;
+  if (j.speed)     document.getElementById('rpt-speed').value    = j.speed;
+  if (j.startdate) document.getElementById('rpt-date-start').value = j.startdate;
+  // finishdate ไม่ถูกบันทึกใน Firestore — คำนวณจาก startdate + cycles/speed แทน
+  try {
+    let finDate = null;
+    if (typeof calcFinishWithPause === 'function' && (j.adjustedStartMs || j.totalDowntimeMins)) {
+      finDate = calcFinishWithPause(j);
+    } else if (typeof finishDt === 'function') {
+      finDate = finishDt(j);
+    }
+    if (finDate) {
+      const yr = finDate.getFullYear();
+      const mo = String(finDate.getMonth() + 1).padStart(2, '0');
+      const dy = String(finDate.getDate()).padStart(2, '0');
+      document.getElementById('rpt-date-end').value = `${yr}-${mo}-${dy}`;
+    }
+  } catch(e) {
+    console.warn('rptLoadJob: cannot compute finishdate', e);
+  }
+  // Spec: L1 = Free length, F1 = F Max (springrate)
+  if (j.l1)         document.getElementById('rpt-spec-l1').value = j.l1;
+  if (j.springrate) document.getElementById('rpt-spec-f1').value = j.springrate;
+  // Load1 ← L1 (Free Length @ L1 position), Load2 ← L2 (Min Compressed @ L2)
+  if (j.l1) document.getElementById('rpt-load1').value = j.l1;
+  if (j.l2) document.getElementById('rpt-load2').value = j.l2;
+  rptUpdateSpec();
+
+  info.textContent = `✅ โหลดข้อมูลจาก Job No.${j.no || '?'} — ${j.partno || '—'} (${j.customer || '—'}) เรียบร้อย`;
+  info.style.display = 'block';
+}
+
+function rptClearForm() {
+  const ids = [
+    'rpt-customer','rpt-partno','rpt-lotno','rpt-machine','rpt-qty',
+    'rpt-cycle','rpt-speed','rpt-date-start','rpt-date-end',
+    'rpt-load1','rpt-load2','rpt-result1-txt','rpt-result2-txt',
+    'rpt-spec-l1','rpt-spec-f1','rpt-spec-tol',
+    'rpt-sum1','rpt-sum2'
+  ];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  // Reset spec preview lines
+  ['rpt-spec-line1','rpt-spec-line2','rpt-spec-line3'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '—';
+  });
+  const hiddenSpec = document.getElementById('rpt-spec-hidden');
+  if (hiddenSpec) hiddenSpec.value = '';
+  const tolMode = document.getElementById('rpt-spec-tol-mode');
+  if (tolMode) tolMode.value = 'pm';
+  document.getElementById('rpt-loaded-info').style.display = 'none';
+  // Combobox reset
+  const rptSearch = document.getElementById('rpt-job-search');
+  if (rptSearch) rptSearch.value = '';
+  document.getElementById('rpt-job-select').value = '';
+  const dd = document.getElementById('rpt-job-dropdown');
+  if (dd) dd.style.display = 'none';
+  rptInitTable();
+}
+
+function rptCollectData() {
+  // Returns "-" for any field that is empty/blank — no field is ever left blank in output
+  const getRaw = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const getVal = id => { const v = getRaw(id); return v || '-'; };
+
+  const dateStart = getRaw('rpt-date-start');
+  const dateEnd   = getRaw('rpt-date-end');
+  let dateTest;
+  if (!dateStart) {
+    dateTest = '-';
+  } else if (!dateEnd) {
+    dateTest = `${dateStart} ~ -`;
+  } else {
+    dateTest = `${dateStart} ~ ${dateEnd}`;
+  }
+
+  const result1 = getRaw('rpt-result1-txt') || '-';
+  const result2 = getRaw('rpt-result2-txt') || '-';
+
+  // specText is pre-built by rptUpdateSpec() and stored in hidden field
+  const hiddenSpec = document.getElementById('rpt-spec-hidden');
+  const specText = (hiddenSpec && hiddenSpec.value) ? hiddenSpec.value : '-';
+
+  const rows = [];
+  for (let i = 1; i <= 5; i++) {
+    const beforeRaw = document.getElementById(`rpt-before-${i}`).value.trim();
+    const afterRaw  = document.getElementById(`rpt-after-${i}`).value.trim();
+    const before    = beforeRaw !== '' ? parseFloat(beforeRaw) : null;
+    const after     = afterRaw  !== '' ? parseFloat(afterRaw)  : null;
+    // diff/judgment: "—" in UI → "-" in output, otherwise keep the calculated value
+    const diffRaw   = document.getElementById(`rpt-diff-${i}`).textContent;
+    const judgeRaw  = document.getElementById(`rpt-judge-${i}`).textContent;
+    const diff      = (diffRaw  === '—' || diffRaw  === '') ? '-' : diffRaw;
+    const judgment  = (judgeRaw === '—' || judgeRaw === '') ? '-' : judgeRaw;
+    const remark    = document.getElementById(`rpt-remark-${i}`).value.trim() || '-';
+    rows.push({ sample: i, before, after, diff, judgment, remark });
+  }
+
+  return {
+    customer: getVal('rpt-customer'),
+    partno:   getVal('rpt-partno'),
+    lotno:    getVal('rpt-lotno'),
+    machine:  getVal('rpt-machine'),
+    qty:      getVal('rpt-qty'),
+    cycle:    getVal('rpt-cycle'),
+    speed:    getVal('rpt-speed'),
+    dateTest,
+    load1:    getVal('rpt-load1'),
+    load2:    getVal('rpt-load2'),
+    result1,  result2,
+    specText,
+    rows,
+    sum1: getRaw('rpt-sum1') || '-',
+    sum2: getRaw('rpt-sum2') || '-',
+  };
+}
+
+// ---- TEMPLATE UPLOAD ----
+window._rptTemplateBuffer = null;
+
+function rptLoadTemplate(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    window._rptTemplateBuffer = e.target.result;
+    document.getElementById('rpt-tpl-name').textContent = '✅ Template: ' + file.name;
+    document.getElementById('rpt-tpl-name').style.color = 'var(--green)';
+    const statusEl = document.getElementById('rpt-tpl-status');
+    statusEl.textContent = 'Template โหลดสำเร็จ — จะถูกใช้เมื่อกด Download Excel';
+    statusEl.style.color = 'var(--green)';
+    statusEl.style.display = 'block';
+    document.getElementById('rpt-tpl-clear-btn').style.display = 'inline-flex';
+    if (typeof toast === 'function') toast('✅ Template พร้อมใช้งาน: ' + file.name, 'ok');
+  };
+  reader.onerror = function() {
+    if (typeof toast === 'function') toast('❌ อ่านไฟล์ไม่ได้', 'err');
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
+function rptClearTemplate() {
+  window._rptTemplateBuffer = null;
+  document.getElementById('rpt-tpl-name').textContent = 'ยังไม่ได้ Upload template — จะใช้ Format เริ่มต้น';
+  document.getElementById('rpt-tpl-name').style.color = '';
+  document.getElementById('rpt-tpl-status').style.display = 'none';
+  document.getElementById('rpt-tpl-clear-btn').style.display = 'none';
+  if (typeof toast === 'function') toast('ลบ Template แล้ว', 'ok');
+  if(document.getElementById('rpt-tpl-input')) document.getElementById('rpt-tpl-input').value = '';
+}
+
+async function rptInjectToTemplate(d, XLSX_lib) {
+  try {
+    const JSZip = window.JSZip;
+    if (!JSZip) throw new Error('JSZip library not loaded');
+
+    // ── Step 1: Open template as ZIP ──────────────────────────────────────────
+    const zip = await JSZip.loadAsync(window._rptTemplateBuffer);
+
+    // ── Step 2: Read sheet1.xml and sharedStrings.xml ─────────────────────────
+    let sheetXml   = await zip.file('xl/worksheets/sheet1.xml').async('string');
+    let sharedXml  = await zip.file('xl/sharedStrings.xml').async('string');
+
+    // ── Step 3: Parse existing sharedStrings ─────────────────────────────────
+    // SharedStrings are stored as <si><t>value</t></si> in order
+    const siMatches = [...sharedXml.matchAll(/<si>([\s\S]*?)<\/si>/g)];
+    const sharedStrings = siMatches.map(m => {
+      const t = m[1].match(/<t[^>]*>([^<]*)<\/t>/);
+      return t ? t[1] : '';
+    });
+
+    // Helper: escape XML special chars
+    const escXml = s => String(s)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&apos;');
+
+    // Helper: find or create a sharedString index, add if not found
+    const getOrAddShared = (val) => {
+      const escaped = escXml(val);
+      // Try to find existing
+      const existing = sharedStrings.indexOf(val);
+      if (existing >= 0) return existing;
+      // Not found — append new entry
+      sharedStrings.push(val);
+      const idx = sharedStrings.length - 1;
+      // Add to sharedStrings XML (before </sst>)
+      const newSi = `<si><t xml:space="preserve">${escaped}</t></si>`;
+      sharedXml = sharedXml.replace('</sst>', newSi + '</sst>');
+      // Update count attribute
+      sharedXml = sharedXml.replace(
+        /count="(\d+)"/,
+        (m, n) => `count="${parseInt(n)+1}"`
+      ).replace(
+        /uniqueCount="(\d+)"/,
+        (m, n) => `uniqueCount="${parseInt(n)+1}"`
+      );
+      return idx;
+    };
+
+    // ── Step 4: Helper to set a cell value in sheet XML ───────────────────────
+    // This directly patches the XML — 100% safe for merged cells
+    //
+    // cellRef: e.g. 'D6'
+    // val: string or number
+    // styleIdx: the s= attribute from original template cell (preserves formatting)
+    //
+    const setCellInXml = (cellRef, val, styleIdx) => {
+      if (val === null || val === undefined) return;
+      const str = String(val);
+      if (!str || str === '') return;
+
+      // Always treat as string — preserves left-alignment from template style
+      const isNum = false;
+
+      // Build new cell XML
+      let newCell;
+      if (isNum && !str.includes('-') && !str.includes('~') && !str.includes('\n')) {
+        // Pure numeric value
+        newCell = `<c r="${cellRef}" s="${styleIdx}"><v>${escXml(str)}</v></c>`;
+      } else {
+        // String value — use sharedStrings
+        const idx = getOrAddShared(str);
+        newCell = `<c r="${cellRef}" s="${styleIdx}" t="s"><v>${idx}</v></c>`;
+      }
+
+      // Replace existing cell in XML using regex
+      // Pattern: <c r="D6" ...>...</c>  OR  <c r="D6" .../>
+      const escapedRef = cellRef.replace(/([.*+?^=!:${}()|[\]/\\])/g, '\\$1');
+      const cellPattern = new RegExp(
+        `<c r="${escapedRef}"[^>]*(?:/>|>(?:(?!<c )[\\s\\S])*?<\\/c>)`
+      );
+
+      if (cellPattern.test(sheetXml)) {
+        sheetXml = sheetXml.replace(cellPattern, newCell);
+      } else {
+        // Cell doesn't exist — insert into correct row
+        const row = cellRef.replace(/[A-Z]/g, '');
+        const rowPattern = new RegExp(`(<row r="${row}"[^>]*>)(.*?)(<\\/row>)`, 's');
+        sheetXml = sheetXml.replace(rowPattern, (match, open, content, close) => {
+          return open + content + newCell + close;
+        });
+      }
+    };
+
+    // ── Step 5: Write all data cells ─────────────────────────────────────────
+
+    // General info (style indices from template analysis)
+    // Force all D6:D13 as STRING so Excel aligns LEFT (not right-aligned as number)
+    setCellInXml('D6',  String(d.customer), 49);
+    setCellInXml('D7',  String(d.partno),   55);
+    setCellInXml('D8',  String(d.lotno),    49);
+    setCellInXml('D9',  String(d.machine),  49);
+    setCellInXml('D10', String(d.qty),      49);
+    setCellInXml('D11', String(d.cycle),    49);
+    setCellInXml('D12', String(d.speed),    49);
+    setCellInXml('D13', String(d.dateTest), 52);
+
+    // Load / Result
+    const load1 = (d.load1 && d.load1 !== '-') ? d.load1 : '';
+    const load2 = (d.load2 && d.load2 !== '-') ? d.load2 : '';
+    if (load1) setCellInXml('F15', load1, 110);
+    if (d.result1 && d.result1 !== '-') setCellInXml('H15', d.result1, 62);
+    if (load2) setCellInXml('F16', load2, 72);
+    if (d.result2 && d.result2 !== '-') setCellInXml('H16', d.result2, 64);
+
+    // Spec text C21 — multiline with \n → store as sharedString with xml:space
+    if (d.specText && d.specText !== '-') {
+      const specEscaped = escXml(d.specText);
+      const specIdx = sharedStrings.length;
+      sharedStrings.push(d.specText);
+      // Add as rich text to preserve newlines
+      const newSi = `<si><t xml:space="preserve">${specEscaped}</t></si>`;
+      sharedXml = sharedXml.replace('</sst>', newSi + '</sst>');
+      sharedXml = sharedXml
+        .replace(/count="(\d+)"/, (m,n) => `count="${parseInt(n)+1}"`)
+        .replace(/uniqueCount="(\d+)"/, (m,n) => `uniqueCount="${parseInt(n)+1}"`);
+
+      // s="92" is the template style — we need to find which style index has center alignment
+      // Instead of relying on existing style, inject inline alignment via xf override is complex
+      // Simpler: write the cell normally but patch the styles.xml to set s=92 to center+wrap
+      // 
+      // Best approach: use a different style index that already has center+wrap in template
+      // Style s=85 = "Load" cell in B21 which is center+vertical middle in merged range
+      // We want center horizontal + top vertical + wrapText for C21 spec text
+      //
+      // Write C21 with s="92" (original) — alignment is controlled by styles.xml entry 92
+      // We will patch styles.xml to ensure xfId 92 has center+wrap alignment
+
+      const newC21 = `<c r="C21" s="92" t="s"><v>${specIdx}</v></c>`;
+      sheetXml = sheetXml.replace(/<c r="C21"[^>]*(?:\/>|>(?:(?!<c )[\s\S])*?<\/c>)/, newC21);
+
+      // Patch styles.xml: update style index 92 to have center+wrap alignment
+      if (zip.file('xl/styles.xml')) {
+        let stylesXml = await zip.file('xl/styles.xml').async('string');
+
+        // Find the 93rd <xf ...> element inside <cellXfs> (0-indexed = index 92)
+        // and add/replace its alignment to center+wrap+top
+        let xfCount = 0;
+        stylesXml = stylesXml.replace(/<cellXfs[^>]*>([\s\S]*?)<\/cellXfs>/, (match, inner) => {
+          const patched = inner.replace(/<xf /g, (m) => {
+            const idx = xfCount++;
+            if (idx === 92) {
+              // This is our target xf — will be handled below
+              return '<xf ';
+            }
+            return m;
+          });
+          return match; // reset — use different approach below
+        });
+
+        // Better approach: directly find and patch the 92nd xf element
+        const xfElements = [...stylesXml.matchAll(/<xf [^>]*(?:\/>|>[\s\S]*?<\/xf>)/g)];
+        if (xfElements.length > 92) {
+          const targetXf = xfElements[92];
+          const originalXf = targetXf[0];
+          
+          // Remove existing <alignment.../> if any, then add our alignment
+          let patchedXf = originalXf.replace(/<alignment[^>]*\/>/g, '');
+          // Add alignment before closing tag
+          const alignmentTag = '<alignment horizontal="center" vertical="center" wrapText="1" shrinkToFit="0"/>';
+          // Remove any existing <alignment.../> first to avoid duplicates
+          patchedXf = patchedXf.replace(/<alignment[^/]*\/>/g, '');
+          patchedXf = patchedXf.replace(/<alignment[^>]*>.*?<\/alignment>/gs, '');
+          // Inject fresh alignment before </xf>
+          if (patchedXf.includes('/>')) {
+            patchedXf = patchedXf.replace('/>', `></xf>`).replace('></xf>', `>${alignmentTag}</xf>`);
+          } else {
+            patchedXf = patchedXf.replace(/<\/xf>/, `${alignmentTag}</xf>`);
+          }
+          // Ensure applyAlignment="1"
+          patchedXf = patchedXf.replace(/<xf /, '<xf applyAlignment="1" ');
+
+          stylesXml = stylesXml.replace(originalXf, patchedXf);
+        }
+
+        zip.file('xl/styles.xml', stylesXml);
+      }
+    }
+
+    // Before/After table rows 21-25
+    const styleMap = { E: 46, F: 6, G: 44, H: 6, I: 7 };
+    d.rows.forEach((r, idx) => {
+      const row = 21 + idx;
+
+      const bv = (r.before !== null && r.before !== undefined) ? String(r.before) : '';
+      const av = (r.after  !== null && r.after  !== undefined) ? String(r.after)  : '';
+
+      if (bv) setCellInXml(`E${row}`, bv, styleMap.E);
+      if (av) setCellInXml(`F${row}`, av, styleMap.F);
+      if (r.diff && r.diff !== '-')      setCellInXml(`G${row}`, r.diff,      styleMap.G);
+      if (r.judgment && r.judgment !== '-') setCellInXml(`H${row}`, r.judgment, styleMap.H);
+      if (r.remark && r.remark !== '-')  setCellInXml(`I${row}`, r.remark,   styleMap.I);
+    });
+
+    // Summary — only write if user typed something (preserve template default otherwise)
+    if (d.sum1 && d.sum1 !== '-') setCellInXml('C40', `- ${d.sum1}`, 68);
+    if (d.sum2 && d.sum2 !== '-') setCellInXml('C41', `- ${d.sum2}`, 68);
+
+    // ── Step 6: Write back modified XML files ─────────────────────────────────
+    zip.file('xl/worksheets/sheet1.xml', sheetXml);
+    zip.file('xl/sharedStrings.xml', sharedXml);
+
+    // ── Step 7: Generate final ZIP (preserves ALL original files: logo, VML, etc.) ──
+    const outputBuffer = await zip.generateAsync({
+      type: 'arraybuffer',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
+    });
+
+    return outputBuffer;
+
+  } catch (err) {
+    console.error('rptInjectToTemplate error:', err);
+    if (typeof toast === 'function') toast('❌ Inject ล้มเหลว: ' + err.message, 'err');
+    return null;
+  }
+}
+
+async function rptExportExcel() {
+  const d = rptCollectData();
+  if (!d.partno && !d.customer) {
+    if (typeof toast === 'function') toast('กรุณากรอกข้อมูลก่อน Export', 'err');
+    return;
+  }
+
+  const XLSX_lib = window.XLSX || (typeof XLSX !== 'undefined' ? XLSX : null);
+  if (!XLSX_lib) { alert('SheetJS (xlsx) library not loaded'); return; }
+
+  const filename = `Endurance_Report_${d.partno || 'report'}_${new Date().toISOString().slice(0,10)}.xlsx`;
+
+  // ==========================================
+  // MODE A: inject into uploaded template (async — uses JSZip to preserve logo + checkboxes)
+  // ==========================================
+  if (window._rptTemplateBuffer) {
+    try {
+      const patchedBuffer = await rptInjectToTemplate(d, XLSX_lib);
+      if (patchedBuffer) {
+        // Save ArrayBuffer directly using a download link (no XLSX.writeFile needed)
+        const blob = new Blob([patchedBuffer], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (typeof toast === 'function') toast('✅ Export จาก Template สำเร็จ (Logo + Checkbox ครบ)', 'ok');
+        return;
+      }
+    } catch (e) {
+      console.error('MODE A export failed:', e);
+      if (typeof toast === 'function') toast('⚠ Template export error — ใช้ Format มาตรฐานแทน', 'warn');
+    }
+  }
+
+  // ==========================================
+  // MODE B: สร้างตารางใหม่จากศูนย์ด้วย SheetJS
+  // ==========================================
+  const wb = XLSX_lib.utils.book_new();
+  const wsData = [];
+
+  wsData.push(['', 'ENDURANCE TEST CONDITION & RESULT']);
+  wsData.push([]); wsData.push([]); wsData.push([]); wsData.push([]);
+
+  wsData.push(['', '', 'Customer Name.', '', d.customer]);
+  wsData.push(['', '', 'Part no.',        '', d.partno]);
+  wsData.push(['', '', 'Lot no.',         '', d.lotno]);
+  wsData.push(['', '', 'Testing Machine', '', d.machine]);
+  wsData.push(['', '', 'Quantity test',   '', d.qty]);
+  wsData.push(['', '', 'Cycle test',      '', d.cycle]);
+  wsData.push(['', '', 'Speed test',      '', d.speed]);
+  wsData.push(['', '', 'Date test',       '', d.dateTest]);
+  wsData.push(['', '', 'Stroke', 'Standard', '', 'Spec', '', 'Result', '']);
+  wsData.push(['', '', '', '', '', d.load1 !== '-' ? (parseFloat(d.load1)||d.load1) : '-', '', d.result1]);
+  wsData.push(['', '', '', '', '', d.load2 !== '-' ? (parseFloat(d.load2)||d.load2) : '-', '', d.result2]);
+  wsData.push(['', '', 'Measuring instrument no.', 'Load Test Machine K4']);
+  wsData.push(['', '', 'Judgment condition ', 'Load loss less than 5% and part not broken']);
+  wsData.push([]);
+  wsData.push(['', 'Spec', '', 'Sample', 'Before', 'After', 'Difference', 'Judgment', 'Remark']);
+
+  d.rows.forEach((r, idx) => {
+    wsData.push([
+      '',
+      idx === 0 ? 'Load' : '',
+      idx === 0 ? (d.specText !== '-' ? d.specText : '-') : '',
+      r.sample,
+      r.before !== null ? r.before : '-',
+      r.after  !== null ? r.after  : '-',
+      r.diff,
+      r.judgment,
+      r.remark
+    ]);
+  });
+
+  for (let i = 0; i < 5; i++) {
+    wsData.push(['', i === 0 ? 'Free length' : '', '', i + 1, '', '', '', '', '']);
+  }
+  wsData.push(['', 'Picture']);
+  for (let i = 0; i < 8; i++) wsData.push([]);
+  wsData.push(['', '', 'Result before test', '', '', 'Result After test']);
+  wsData.push(['', 'Summary', `- ${d.sum1}`]);
+  wsData.push(['', '',        `- ${d.sum2}`]);
+  for (let i = 0; i < 3; i++) wsData.push([]);
+  wsData.push(['', 'Final judgment']);
+  wsData.push([]);
+  wsData.push(['', '', '', '', `After the endurance Test ${d.cycle} cycle, Spring no broken.`]);
+  wsData.push([]);
+  wsData.push(['', '', '', '', 'Load loss is less than 5%.']);
+  wsData.push([]); wsData.push([]);
+  wsData.push(['', 'Remark', '', '', '', '', 'Approved', 'Checked', 'Prepared']);
+
+  const ws = XLSX_lib.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{wch:4},{wch:12},{wch:32},{wch:20},{wch:12},{wch:12},{wch:12},{wch:12},{wch:18}];
+  XLSX_lib.utils.book_append_sheet(wb, ws, 'Sheet1');
+  XLSX_lib.writeFile(wb, filename);
+  if (typeof toast === 'function') toast('✅ Download Excel สำเร็จ (Format มาตรฐาน)', 'ok');
+}
+
+function rptExportPDF() {
+  const d = rptCollectData();
+  // specText may contain real newlines — convert to <br> for HTML; if "-" just show "-"
+  const specHtml = (d.specText === '-') ? '-' : d.specText.replace(/\n/g, '<br>');
+  const html = `
+    <style>
+      body{font-family:Arial,sans-serif;font-size:10pt;color:#000}
+      h2{text-align:center;font-size:13pt;margin-bottom:12px}
+      table{width:100%;border-collapse:collapse;margin-bottom:12px}
+      td,th{border:1px solid #888;padding:4px 7px;font-size:9pt}
+      th{background:#e8e8e8;font-weight:600}
+      .section-title{font-size:9pt;font-weight:700;background:#d0d8e8;padding:4px 7px;border:1px solid #888}
+      .ok{color:#166534;font-weight:700} .ng{color:#991b1b;font-weight:700}
+    </style>
+    <h2>ENDURANCE TEST CONDITION &amp; RESULT</h2>
+    <table>
+      <tr><td width="30%"><b>Customer Name</b></td><td>${d.customer}</td><td width="20%"><b>Part No.</b></td><td>${d.partno}</td></tr>
+      <tr><td><b>Lot No.</b></td><td>${d.lotno}</td><td><b>Testing Machine</b></td><td>${d.machine}</td></tr>
+      <tr><td><b>Quantity Test</b></td><td>${d.qty} PCS</td><td><b>Cycle Test</b></td><td>${d.cycle}</td></tr>
+      <tr><td><b>Speed Test</b></td><td>${d.speed} cycle/min</td><td><b>Date Test</b></td><td>${d.dateTest}</td></tr>
+      <tr><td><b>Load 1 (F15)</b></td><td>${d.load1} N &mdash; Result: <span class="${d.result1==='OK'?'ok':'ng'}">${d.result1}</span></td>
+          <td><b>Load 2 (F16)</b></td><td>${d.load2} N &mdash; Result: <span class="${d.result2==='OK'?'ok':'ng'}">${d.result2}</span></td></tr>
+      <tr><td><b>Spec Load 1</b></td><td colspan="3" style="white-space:pre-wrap">${specHtml}</td></tr>
+    </table>
+    <table>
+      <tr class="section-title"><td colspan="6">Before / After Endurance Test Results</td></tr>
+      <tr><th>Sample</th><th>Before (N)</th><th>After (N)</th><th>Difference (%)</th><th>Judgment</th><th>Remark</th></tr>
+      ${d.rows.map(r=>`<tr>
+        <td style="text-align:center">${r.sample}</td>
+        <td>${r.before !== null ? r.before : '-'}</td>
+        <td>${r.after  !== null ? r.after  : '-'}</td>
+        <td>${r.diff}</td>
+        <td class="${r.judgment==='OK'?'ok':r.judgment==='NG'?'ng':''}">${r.judgment}</td>
+        <td>${r.remark}</td>
+      </tr>`).join('')}
+    </table>
+    <table>
+      <tr><td width="15%"><b>Summary</b></td><td>- ${d.sum1}<br>- ${d.sum2}</td></tr>
+    </table>
+    <table>
+      <tr><th style="width:33%">Approved</th><th style="width:33%">Checked</th><th>Prepared</th></tr>
+      <tr><td style="height:40px"></td><td></td><td></td></tr>
+    </table>
+  `;
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(`<!DOCTYPE html><html><head><title>Endurance Report</title></head><body>${html}</body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(() => {
+    rptInitTable();
+    const origRD = window.renderDashboard;
+    if (origRD) {
+      window.renderDashboard = function() {
+        origRD.apply(this, arguments);
+        rptPopulateJobSelect();
+      };
+    }
+  }, 1200);
+});
 </script>
 </body>
 </html>
