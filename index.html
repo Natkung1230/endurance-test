@@ -232,8 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
-</script>
-<script>
+
 // =============================================
 // NOTIFICATION CONFIG — กรอก EmailJS config ตรงนี้
 // =============================================
@@ -1088,6 +1087,14 @@ tr:last-child td{border-bottom:none}
     </div>
     <div class="fl" style="margin-bottom:11px"><label>Note</label><input type="text" id="e-note"></div>
     <input type="hidden" id="e-fid">
+    <div id="edit-recovery-actions" style="display:none; padding:12px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:8px; margin-bottom:11px;">
+      <div style="font-size:12px; font-weight:600; color:var(--amber); margin-bottom:8px;">⚠️ Recovery Actions (Stuck Job)</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="recoverJob('reset')" style="border-color:var(--border2)">🔄 Reset Cycle</button>
+        <button class="btn btn-primary btn-sm" onclick="recoverJob('resume')">▶️ Resume & Run</button>
+        <button class="btn btn-danger btn-sm" onclick="recoverJob('finish')">✓ Finish Now</button>
+      </div>
+    </div>
     <div class="btn-row"><button class="btn btn-primary" onclick="saveEdit()">Save Changes</button><button class="btn btn-ghost" onclick="closeModal('modal-edit')">Cancel</button></div>
   </div>
 </div>
@@ -2523,6 +2530,22 @@ function openEdit(fid){
   document.getElementById('e-fid').value=fid;
   const map={'e-no':getDynamicNo(j),'e-customer':j.customer,'e-partno':j.partno,'e-pcs':j.pcs,'e-lotno':j.lotno,'e-machine':j.machine,'e-status':j.status,'e-l1':j.l1,'e-l2':j.l2,'e-sr':j.sr||'','e-load':j.load,'e-speed':j.speed,'e-cycles':j.cycles,'e-startdate':j.startdate,'e-startH':j.startH,'e-startM':j.startM,'e-note':j.note||''};
   Object.entries(map).forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.value=v;});
+  
+  const recoveryEl = document.getElementById('edit-recovery-actions');
+  if (recoveryEl) {
+    let showRecovery = false;
+    if (window._isAdmin) {
+      // แสดง Recovery buttons สำหรับ Finished jobs (รันใหม่) หรือ Stuck Running jobs
+      if (j.status === 'Finished') {
+        showRecovery = true;
+      } else if (j.status === 'Run') {
+        const fin2 = typeof calcFinishWithPause==='function' ? calcFinishWithPause(j) : finishDt(j);
+        if (fin2 && new Date() > fin2) { showRecovery = true; }
+      }
+    }
+    recoveryEl.style.display = showRecovery ? 'block' : 'none';
+  }
+
   document.getElementById('modal-edit').classList.add('open');
 }
 
@@ -2538,6 +2561,77 @@ async function saveEdit(){
     toast('Updated','ok');closeModal('modal-edit');
     await autoShiftPlannedJobs(data.machine);
   }catch(e){toast('Error: '+e.message,'err');}
+}
+
+async function recoverJob(action) {
+  if(!window._isAdmin) { toast('เฉพาะ Admin/Dev เท่านั้น', 'err'); return; }
+  const fid = document.getElementById('e-fid').value;
+  const j = (window._jobs||[]).find(x=>x._id===fid);
+  if(!j) return;
+  
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth()+1).padStart(2, '0');
+  const yy = now.getFullYear();
+  const h = now.getHours();
+  const m = now.getMinutes();
+  const todayStr = `${yy}-${mm}-${dd}`;
+  const timeStr = now.toLocaleString('en-GB').replace(',', '');
+  
+  let currentNote = document.getElementById('e-note').value.trim();
+  const {doc, updateDoc} = window._fns;
+  const jobRef = doc(window._db, 'jobs', fid);
+  
+  try {
+    if (action === 'reset') {
+      if(!confirm('ยืนยันการ Reset Cycle? (เริ่มใหม่ทั้งหมด)')) return;
+      const newNote = currentNote ? currentNote + ` [RESET CYCLE: ${timeStr}]` : `[RESET CYCLE: ${timeStr}]`;
+      await updateDoc(jobRef, {
+        cycles: 0,
+        status: 'Plan',
+        startdate: todayStr,
+        startH: h,
+        startM: m,
+        note: newNote,
+        paused: false,
+        pausedAt: null
+      });
+      toast('✅ Reset Cycle สำเร็จ', 'ok');
+    } else if (action === 'resume') {
+      const newCycles = parseInt(document.getElementById('e-cycles').value) || 0;
+      if(!confirm(`ยืนยันการ Resume & Run ด้วย Cycles: ${newCycles}?`)) return;
+      const newNote = currentNote ? currentNote + ` [RESUMED: ${timeStr} - Cycles: ${newCycles}]` : `[RESUMED: ${timeStr} - Cycles: ${newCycles}]`;
+      await updateDoc(jobRef, {
+        cycles: newCycles,
+        status: 'Run',
+        startdate: todayStr,
+        startH: h,
+        startM: m,
+        note: newNote,
+        paused: false,
+        pausedAt: null,
+        adjustedStartMs: null,
+        totalDowntimeMins: 0,
+        downtimeLog: [],
+        adjustLog: []
+      });
+      toast('✅ Resume & Run สำเร็จ', 'ok');
+    } else if (action === 'finish') {
+      if(!confirm('ยืนยันการ Force Finish Job นี้?')) return;
+      const newNote = currentNote ? currentNote + ` [FORCE FINISHED: ${timeStr}]` : `[FORCE FINISHED: ${timeStr}]`;
+      await updateDoc(jobRef, {
+        status: 'Finished',
+        finishdate: now.toISOString(),
+        note: newNote,
+        paused: false,
+        pausedAt: null
+      });
+      toast('✅ Force Finish สำเร็จ', 'ok');
+    }
+    closeModal('modal-edit');
+  } catch(e) {
+    toast('Error: ' + e.message, 'err');
+  }
 }
 
 async function delJob(fid){
